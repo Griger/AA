@@ -9,6 +9,8 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+Nota: algunos de los resultados mostrados no serán exactamente los mismos que se vean en ejecución, esto se debe a que algunos se han copiado y pegado y otros se han ejecutado en Rmarkdown con lo cual los randoms que se dan no son los mismo exactamente, de todos modos el análisis realizado de los resultados es válido tanto para los que se aquí se muestran como para los que se verán en la ejecución.
+
 # Generación y visualización de datos
 
 ## 1. Construir una función lista = simula_unif (N, dim, rango) que calcule una lista de longitud N de vectores de dimensión dim conteniendo números aleatorios uniformes en el intervalo rango.
@@ -533,6 +535,16 @@ ejercicio4.2 <- function() {
   for (i in seq(1, nrow(m_datos)))
     imagenes <- c(imagenes, list(getImagen(m_datos[i,2:257])))
   
+  #mostramos la imagenes en escala de grises
+  par(mfrow = c(2,2))
+  image(imagenes[[1]], col = gray.colors(12))
+  image(imagenes[[2]], col = gray.colors(12))
+  image(imagenes[[3]], col = gray.colors(12))
+  image(imagenes[[4]], col = gray.colors(12))
+  
+  Sys.sleep(5)
+  
+  print("")
   #creamos una array con las medias y simetrias de las imagenes
   medias <- unlist(lapply(imagenes, mean))
   simetrias <- unlist(lapply(imagenes, getSimetria))
@@ -606,19 +618,73 @@ f5 <- function(dato) {
 
 Una vez hecho esto el cómo implementamos el experimento es claro visto los códigos que hemos visto anteriormente y puede verse en el código adjunto con la práctica. Entonces pasamos a mostrar los resultados:
 
-[1] "Apartado a"
-El error promedio de entrenamiento es:  256.66 
+```{r, echo = FALSE}
+ejercicio4.8 <- function() {
+  #apartado a
+  err_in = 0
+  for (i in seq(1,1000)) {
+    datos <- simula_unif(1000, 2, c(-10,10)) #generamos datos
+    et <- introducirRuido(apply(datos, 1, f5)) #introducimos ruido
+    
+    datos_hom <- cbind(datos, 1) #homogeneizamos datos
+    w <- t(regressLin(datos_hom, et)) #calculamos el vector de pesos por regresion
+    et_reg <- apply(datos_hom, 1, h, w = w) #calculamos las etiquetas dadas por ese vector de pesos
+    
+    
+    err_in = err_in + 0.001*length(which(et_reg != et)) #medimos el error dentro de la muestra
+  }
+  print("Apartado a")
+  cat("El error promedio de entrenamiento es: ", err_in, "\n")
+  #apartado b
+  datos <- simula_unif(1000,2,c(-10,10)) #generamos datos
+  datos_trans <- t(apply(datos,1, fi)) #generamos los datos (1,x,y,xy,x^2, y^2) a partir de los generados
+  et <- introducirRuido(apply(datos, 1, f5)) #introducimos ruido a las etiquetas
+  
+  w_gorro <- t(regressLin(datos_trans, et)) #calculamos el vector de pesos por regresion
+  et_reg <- apply(datos_trans, 1, h, w = w_gorro) #calculamos las etiquetas dadas por esos pesos
+  print("Apartado b")
+  cat("El w de pesos obtenido: ", w_gorro, "\n")
+  cat("El error dentro de la muestra es: ", length(which(et != et_reg)), "\n")
+  
+  #hacemos un submuestreo de la region donde pintaremos la funcion
+  x <- seq(-10,10,length = 1000)
+  y <- seq(-10,10,length = 1000)
+  #calculamos el valor de la funcion en esas muestras
+  z <- outer(x,y,function(x,y) {w_gorro[1]+x*w_gorro[2]+y*w_gorro[3]+w_gorro[4]*x*y+w_gorro[5]*x*x+w_gorro[6]*y*y})
+  
+  plot(datos, col = et+2)
+  #dibujamos la funcion con los datos indicados
+  par(new = TRUE)
+  contour(x,y,z,levels=0, drawlabels = FALSE)
+  
+  #apartado c
+  err_out = 0
+  for (i in seq(1,1000)) {
+    datos <- simula_unif(1000,2,c(-10,10)) #generamos datos
+    datos_trans <- t(apply(datos,1, fi)) #generamos los datos (1,x,y,xy,x^2, y^2) a partir de los generados
+    et <- introducirRuido(apply(datos, 1, f5)) #introducimos ruido a las etiquetas
+    
+    w_gorro <- t(regressLin(datos_trans, et)) #calculamos el vector de pesos
+    
+    datos_out <- simula_unif(1000, 2, c(-10,10)) #generamos los datos fuera de la meustra para medir con ellos Eout
+    datos_out_trans <- t(apply(datos_out, 1, fi)) #obtenemos los datos transformados 
+    
+    et_out <- apply(datos_out, 1, f5) #obtenemos etiquetas por la funcion
+    et_out_w <- apply(datos_out_trans, 1, h, w = w_gorro) #obtenemos etiquetas por el vector de pesos obtenido
+    
+    err_out = err_out + 0.001*length(which(et_out != et_out_w)) #medimos el error fuera de la muestra
+  }
+  print("Apartado c")
+  cat("E_out promedio: ", err_out, "\n")
+}
 
-[1] "Apartado b"
-El w de pesos obtenido:  -0.07076741 0.01075929 -0.005167807 0.0007352349 0.008385859 0.008504574 
-El error dentro de la muestra es:  194 
+ejercicio4.8()
+```
 
-[1] "Apartado c"
-E_out promedio:  72.503 
 
-Para el primer apartado del ejercicio vemos cómo la tasa de error es muy elevada (256.66) ya que estamos tratando de clasificar datos no linealmente separables por medio de una recta. 
+Para el primer apartado del ejercicio vemos cómo la tasa de error es muy elevada (256.417) ya que estamos tratando de clasificar datos no linealmente separables por medio de una recta. 
 
-Cuando transformamos los datos de modo que pasemos a datos linealmente separables como podemos ver el error se reduce a (194) que sigue siendo un error grande pero es menor que antes. Si nos fijamos en lo que obtenemos es una elipse, la función objetivo es una circuferencia pero dado que estamos introduciendo error a las etiquetas es normal que obtengamos algo así.
+Cuando transformamos los datos de modo que pasemos a datos linealmente separables como podemos ver el error se reduce a (121) que sigue siendo un error grande pero es menor que antes. Si nos fijamos en lo que obtenemos es una elipse, la función objetivo es una circuferencia pero dado que estamos introduciendo error a las etiquetas es normal que obtengamos algo así.
 
 Ahora encontramos un resultado extraño y es que el error promedio fuera de la muestra es mejor que el obtenido en el apartado anterior dentro de la muestra, supongo que será porque en algunas de las 1000 iteraciones la muestra de test se ajusta muy bien a la función ajustada y hace que esta baje.
 

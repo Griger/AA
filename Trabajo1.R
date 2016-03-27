@@ -454,13 +454,6 @@ regressLin <- function(datos, label) {
 }
 
 digitos_entrenamiento <- read.table("datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
-#getSrcDirectory(function(x) {x}) -> base
-#path <- paste(base,"/datos/zip.train", sep = "")
-#digitos_entrenamiento <- read.table(path, quote="\"", comment.char="", stringsAsFactors=FALSE)
-#digitos_entrenamiento <- read.table("./datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
-#digitos_entrenamiento <- read.table("/media/usuario/Datos/Documentos/Facultad/5DGIIYM/AA/P/DigitosZip/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
-#digitos_entrenamiento <- read.table("C:/Users/Griger/Desktop/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
-
 
 ejercicio4.2 <- function() {
   #tomamos solo las instancias correspondientes a 1 y 5
@@ -478,6 +471,14 @@ ejercicio4.2 <- function() {
   for (i in seq(1, nrow(m_datos)))
     imagenes <- c(imagenes, list(getImagen(m_datos[i,2:257])))
   
+  #mostramos la imagenes en escala de grises
+  par(mfrow = c(2,2))
+  image(imagenes[[1]], col = gray.colors(12))
+  image(imagenes[[2]], col = gray.colors(12))
+  image(imagenes[[3]], col = gray.colors(12))
+  image(imagenes[[4]], col = gray.colors(12))
+  
+  Sys.sleep(5)
   #creamos una array con las medias y simetrias de las imagenes
   medias <- unlist(lapply(imagenes, mean))
   simetrias <- unlist(lapply(imagenes, getSimetria))
@@ -633,7 +634,7 @@ ejercicio4.8 <- function() {
   cat("E_out promedio: ", err_out, "\n")
 }
 
-print("Visualizacion y generazion de datos")
+print("Visualizacion y generacion de datos")
 print("Ejercicio3")
 ejercicio3()
 print ("Pulsar ENTER para continuar.")
@@ -669,7 +670,7 @@ ejercicio3.4()
 print ("Pulsar ENTER para continuar.")
 invisible(readLines("stdin", n=1))
 print("Ejercicio 5")
-#ejercicio3.5()
+ejercicio3.5()
 print ("Pulsar ENTER para continuar.")
 invisible(readLines("stdin", n=1))
 print("Ejercicio 6")
