@@ -99,13 +99,14 @@ coordDesc <- function(f, gradf, eta, w0, tol, max_iter = 1000000) {
     w[1] = w[1] - eta*gradf(w)[1]
     w[2] = w[2] - eta*gradf(w)[2]
     
-    if (f(w) < tol || n_iters == max_iter || d(w_ant, w) <= tol || abs(f(w) - f_ant) <= tol)
-      break
+    if (f(w) < tol || n_iters == max_iter || d(w_ant, w) <= tol || abs(f(w) - f_ant) <= tol) break
     
   }
   
   list(w, f(w))
 }
+
+#coordDesc(E, gradE, 0.1, c(1,1), 10**(-14), 15) (llamada ej. 1.2)
 
 #Ejercicio 1.3
 
@@ -128,20 +129,27 @@ Metodo de Newton
 @w0: punto de inicio
 @max_iter: maximo de iteraciones permitidas para el algoritmo
 '
-Newton <- function(f, gradf, Hf, eta, w0, max_iter){
+Newton <- function(f, gradf, Hf, eta, w0, tol, max_iter = 1000000){
   w = w0
   n_iters = 0
-  while (n_iters < max_iter) {
+  
+  repeat {
+    w_ant = w 
+    f_ant = f(w)
+    
     w = w-t(eta*ginv(Hf(w))%*%gradf(w))
     n_iters = n_iters + 1
+    
+    if (f(w) < tol || n_iters == max_iter || d(w_ant, w) <= tol || abs(f(w) - f_ant) <= tol) break
   }
   
+  cat("Numero de iteraciones empleado: ", n_iters, "\n")
   w
 }
 
+#Newton(f, gradf, Hf, 0.1, c(1,1), 10**(-14), 50) (llamada ejemplo para ej. 1.3)
 
 #Ejercicio 1.4
-
 '
 Regresion Logistica
 @datos: los datos a los que ajustarnos
@@ -155,7 +163,7 @@ RL <- function(datos, et, eta, wo, tol) {
   w = w0
   
   repeat{
-    for (i in seq(N)) {
+    for (i in sample(N)) {
       gt = (-et[i]*datos[i])/(1+exp(et[i]*w*datos[i]))
       w = w - eta*gt
     }
@@ -165,3 +173,6 @@ RL <- function(datos, et, eta, wo, tol) {
   
   w
 }
+
+#Ejercicio 1.5
+
