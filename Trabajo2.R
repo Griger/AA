@@ -1,4 +1,5 @@
 library('MASS')
+set.seed(41192)
 #Ejercicio 1.1
 #Definimos una funcion que calcule la distancia euclidea entre dos vectores
 d <- function(x,y) {
@@ -79,20 +80,28 @@ gradf <- function(X) {
 #Ejercicio 1.2
 
 '
-Metodo general gradiente descendente
+Metodo general coordenada descendente
 @f: funcion a minimizar
 @gradf: el gradiente de la funcoin a minimizar
 @eta: tasa de aprendizaje
 @w0: punto de inicio
 @max_iter: maximo de iteraciones permitidas para el algoritmo
 '
-coordDesc <- function(f, gradf, eta, w0, max_iter) {
+coordDesc <- function(f, gradf, eta, w0, tol, max_iter = 1000000) {
   w = w0
-  n_iters = 0
-  while (n_iters < max_iter){
+  n_iters = 1
+  
+  repeat{
+    w_ant = w 
+    f_ant = f(w)
     n_iters = n_iters + 1
+    
     w[1] = w[1] - eta*gradf(w)[1]
     w[2] = w[2] - eta*gradf(w)[2]
+    
+    if (f(w) < tol || n_iters == max_iter || d(w_ant, w) <= tol || abs(f(w) - f_ant) <= tol)
+      break
+    
   }
   
   list(w, f(w))
