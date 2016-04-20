@@ -117,7 +117,7 @@ y pasamos a los resultados:
 
 ```{r, echo=FALSE}
 gradDesc(f, gradf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
-gradDesc(f, gradf, 0.001, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
+gradDesc(f, gradf, 0.1, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
 ```
 
 

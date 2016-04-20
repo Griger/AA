@@ -139,5 +139,29 @@ Newton <- function(f, gradf, Hf, eta, w0, max_iter){
   w
 }
 
+
 #Ejercicio 1.4
 
+'
+Regresion Logistica
+@datos: los datos a los que ajustarnos
+@et: las etiquetas de los datos
+@w0: vector de pesos inicial
+@eta: tasa de aprendizaje
+@tol: la diferencia entre dos vectores de pesos consecutivos para la cond. de parada
+'
+RL <- function(datos, et, eta, wo, tol) {
+  N = length(datos)
+  w = w0
+  
+  repeat{
+    for (i in seq(N)) {
+      gt = (-et[i]*datos[i])/(1+exp(et[i]*w*datos[i]))
+      w = w - eta*gt
+    }
+    
+    if (d(w, w_ant) < tol) break
+  }
+  
+  w
+}
