@@ -1,5 +1,29 @@
 library('MASS')
 set.seed(41192)
+
+#Funciones externas
+simula_unif <- function (N, dim, rango) {
+  datos <- matrix(runif(N*dim, rango[1], rango[2]), ncol = dim, nrow = N)
+  datos
+}
+
+simula_recta <- function(rango = c(-50,50)) {
+  coordenadas = simula_unif(2,2,rango) #generamos dos ptos en el cuadrado rangoxrango
+  a = (coordenadas[2,2]-coordenadas[1,2])/(coordenadas[2,1]-coordenadas[1,1])#la pendiente (m)
+  b = -a*coordenadas[1,1] + coordenadas[1,2] #el factor independiente en la ecuacion y = mx+b
+  
+  c(a,b)
+}
+
+f0 <- function(a, b, x, y) {sign(y-b*x-a)}
+
+getImagen <- function(datos) {
+  matrix(datos, ncol = 16) #le pasamos los datos y las columnas que tiene que tener la matriz que formemos con ellos
+}
+
+getSimetria <- function(m) {
+  -2*sum(abs(m[,seq(1,8)]-m[,seq(16,9)]))
+}
 #Ejercicio 1.1
 #Definimos una funcion que calcule la distancia euclidea entre dos vectores
 d <- function(x,y) {
@@ -143,6 +167,7 @@ Newton <- function(f, gradf, Hf, eta, w0, tol, max_iter = 1000000){
     if (f(w) < tol || n_iters == max_iter || d(w_ant, w) <= tol || abs(f(w) - f_ant) <= tol) break
   }
   
+  cat("El valor de f alcanzado es: ", f(w), "\n")
   cat("Numero de iteraciones empleado: ", n_iters, "\n")
   w
 }
@@ -158,21 +183,57 @@ Regresion Logistica
 @eta: tasa de aprendizaje
 @tol: la diferencia entre dos vectores de pesos consecutivos para la cond. de parada
 '
-RL <- function(datos, et, eta, wo, tol) {
-  N = length(datos)
+RL <- function(datos, et, eta, w0, tol) {
+  N = nrow(datos)
+  #cat("Tenemos",N,"datos\n")
   w = w0
   
   repeat{
+    w_ant = w
+    #cat("El w_ant:",w_ant,"\n")
+    
     for (i in sample(N)) {
-      gt = (-et[i]*datos[i])/(1+exp(et[i]*w*datos[i]))
+      gt = (-et[i]*datos[i,])/(1+exp(et[i]*w%*%datos[i,]))
       w = w - eta*gt
     }
     
-    if (d(w, w_ant) < tol) break
+    cat("Distancia:",d(w,w_ant),"\n")
+    if (d(w, w_ant) < tol)
+      break
   }
   
   w
 }
 
-#Ejercicio 1.5
+ejercicio1.4 <- function(){
+  datos <- simula_unif(100, 2, c(-1,1))
+  recta <- simula_recta(c(-1,1))
+  ets <- mapply(f0, recta[2], recta[1], datos[,1], datos[,2])
+  print(datos[1,])
+  #obtenemos las etiquetas desde los signos
+  ets[which(ets == -1)] = 0
+  
+  RL(datos, ets, 0.01, c(0,0), 0.01)
+  
+}
 
+#Ejercicio 1.5
+datos_train <- read.table("~/AA/datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
+datos_test <- read.table("~/AA/datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
+
+ejercicio1.5 <- function(){
+  instancias <- datos_train[(datos_train[,1] == 1 | datos_train[,1] == 5),]
+  m_datos <- data.matrix(instancias)
+  m_datos[,2:257] <- 0.5*(1-m_datos[,2:257])
+  et <- m_datos[,1]
+  
+  imagenes <- list()
+  
+  for (i in seq(1, nrow(m_datos)))
+    imagenes <- c(imagenes, list(getImagen(m_datos[i,2:257])))
+  
+  medias <- unlist(lapply(imagenes, mean))
+  simetrias <- unlist(lapply(imagenes, getSimetria))
+  
+  
+}
