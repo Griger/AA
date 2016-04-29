@@ -2,6 +2,7 @@
 #3.2
 #Ejercicio 1
 library(MASS)
+library(package = "pracma")
 set.seed(41192)
 X11()
 

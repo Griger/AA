@@ -10,14 +10,20 @@ set.seed(41192)
 
 # 1. MODELOS LINEALES
 
-## **Gradiente descendente** Implementar el algoritmo de gradiente descendente. 
+## 1. **Gradiente descendente** Implementar el algoritmo de gradiente descendente. 
 ## a) Considerar la función no lineal de error $E(u,v) = (ue^v-2ve^{-u})^2$. Usar gradiente descendente y minimizar esta función de error, comenzando desde el punto $(u,v) = (1,1)$ y usando una tasa de aprendizaje $\eta = 0.1$.
 
 ### 1) Calcular analíticamente y mostrar la expresión del gradiente de la función $E(u,v)$.
 
+Calculamos en primer lugar las derivadas parciales de la función respecto a de las variables u y v, que serán las dos componentes del gradiente de la función:
+
+$\dfrac{\partial E}{\partial u}(u,v) = 2(ue^v-2ve^{-u})(e^v+2ve^{-u})$
+
+$\dfrac{\partial E}{\partial v}(u,v) = 2(ue^v-2ve^{-u})(ue^v-2e^{-u})$
+
 El gradiente de esta función es el siguiente:
 
-$\nabla E(u,v) = 2*(ue^v-2ve^{-u})(e^v+2ve^{-u}, ue^v-2e^{-u})$
+$\nabla E(u,v) = 2(ue^v-2ve^{-u})(e^v+2ve^{-u}, ue^v-2e^{-u})$
 
 entonces definimos tanto la función de error como el gradiente de la función para poder usarlo en los métodos que iremos implementando a lo largo de la práctica.
 
@@ -74,12 +80,12 @@ gradDesc <- function(f, gradf, eta, w0, tol, max_iter = 1000000, dibujar = FALSE
     } 
   }
   
-  if (dibujar)
-    plot(seq(n_iters), valores_f, type = "l", ylab = "Valor de f", xlab = "Iteraciones")
-  
   cat("Num de iters empleado", n_iters, "\n")
   cat("Valor de f alcanzado", f(w), "\n")
   cat("w obtenido", w, "\n")
+  
+  if (dibujar)
+    plot(seq(n_iters), valores_f, type = "l", ylab = "Valor de f", xlab = "Iteraciones")
 }
 ```
 
@@ -89,7 +95,7 @@ Y los resultados que obtenemos son:
 gradDesc(E, gradE, 0.1, c(1,1), 10**(-14)) 
 ```
 
-Si nos fijamos en la función anterior vamos almacenando en *valores_f* los valores de la función que se van alcanzando con los distintos vectores de pesos, esto lo hacemos para poder dibujar una gráfica en la que se muestre cómo evoluciona el valor de la función a medida avanzan las iteraciones del algoritmo, algo que se nos pide en el siguiente apartado.
+Si nos fijamos en la función anterior vamos almacenando en *valores_f* los valores de la función que se van alcanzando con los distintos vectores de pesos, esto lo hacemos para poder dibujar una gráfica en la que se muestre cómo evoluciona el valor de la función a medida que avanzan las iteraciones del algoritmo, algo que se nos pide en el siguiente apartado.
 
 ## b) Considerar ahora la función $f(x,y) = x^2 + 2y^2 + 2sin(2\pi x)sin(2\pi y)$
 
@@ -120,7 +126,127 @@ gradDesc(f, gradf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
 gradDesc(f, gradf, 0.1, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
 ```
 
+Lo que ocurre es que la tasa de aprendizaje nos define la longitud de los "saltos" que damos de un iteración del algoritmo a otra, es decir, el gradiente nos manda la dirección en la que nos movemos pero la tasa de aprendizaje es la que nos dice cuánto nos movemos en dicha dirección. Entonces cuando la tasa de aprendizaje es grande, $\eta = 0.1$, la longitud del "salto" es tan grande que nos pasamos del mínimo, es decir, pasamos a una zona de la función con un valor mayor del que ya estábamos, entonces aunque la convergencia con una tasa de aprendizaje menor es más lenta, es más segura al tener menor probabilidad de tener este efecto.
+
+Lo que si observamos es que, en esta ocasión, llegamos a un valor por debajo del establecido en un menor número de iteraciones puesto que el dar "saltos" de mayor longitud nos ha llevado a una "zona" de la función de valores menores y hemos alcanzado un valor bajo más rápido, pero pensemos por ejemplo en la función $x^2$ que tiene sólo un mínimo en el cero y que quisiéramos alcanzar dicho mínimo, entonces quizás con una tasa de aprendizaje tan grande no llegaríamos nunca a alcanzarlo.
+
+### 2) Obtener el valor mínimo y los valors de las variables que lo alcanzan cuando el punto de inicio se fija: (0.1,0.1), (1,1), (-0.5, -0.5), (-1,-1). Generar una tabla con los valores obtenidos. ¿Cuál sería su conclusión sobre la verdadera dificultad de encontrar el mínimo global de una función arbitraria?
+
+```{r, echo=FALSE}
+gradDesc(f, gradf, 0.01, c(0.1,0.1), 10**(-14), max_iter = 50, dibujar = FALSE)
+gradDesc(f, gradf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = FALSE)
+gradDesc(f, gradf, 0.01, c(-0.5,-0.5), 10**(-14), max_iter = 50, dibujar = FALSE)
+gradDesc(f, gradf, 0.01, c(-1,-1), 10**(-14), max_iter = 50, dibujar = FALSE)
+```
+
+| Pto. inicial | Mín. alcanzado | Iteraciones Empleadas | Valor de las variables      |
+|--------------|----------------|-----------------------|-----------------------------|
+| (0.1,0.1)    | -0.0009552139  | 4                     | (0.005266095, -0.002392069) |
+| (1,1)        | 0.5932694      | 18                    | (1.21807, 0.7128119)        |
+| (-0.5,-0.5)  | -0.01244002    | 6                     | (-0.5803234, -0.3839919)    |
+| (-1,-1)      | 0.5932694      | 18                    | (-1.21807, -0.7128119)      |
+
+Por como funciona nuestro algoritmo y los criterios de parada que hemos establecido y que hemos mencionado anteriormente tenemos que la principal dificultad es la de partir de un buen punto inicial ya que podemos quedar atrapados en un mínimo local o en una zona de poca variabilidad por eso en los puntos (1,1) y (-1,-1) pese a alcanzar un valor bastante elevado de la función el algoritmo para puesto que la variabilidad entre los distintos valores de la función en iteraciones consecutivas en muy pequeña.
+
+## 2. **Coordenada descendente** En este ejercicio compararemos la eficiencia de la técnica de optimización de "coordenada descendente" usando la misma función del ejercicio 1.1a. En cada iteración tenemos dos pasos a lo largo de dos coordenadas. En el Paso-1 nos movemos a lo largo de la coordenada $u$ para reducir el error (suponer que se verifica una aproximación de primer orden como en gradiente descendente), y en el Paso-2 es para reevaluar y movernos a lo largo de la coordenada $v$ para reducir el error (hacer la misma hipótesis que en el Paso-1). Usar una tasa de aprendizaje $\eta = 0.1$.
+
+Veamos la implementación que hemos hecho del algoritmo:
+
+```{r}
+coordDesc <- function(f, gradf, eta, w0, tol, max_iter = 1000000) {
+  w = w0
+  n_iters = 1
+  
+  repeat{
+    w_ant = w 
+    f_ant = f(w)
+    n_iters = n_iters + 1
+    
+    w[1] = w[1] - eta*gradf(w)[1]
+    w[2] = w[2] - eta*gradf(w)[2]
+    
+    if (f(w) < tol || n_iters == max_iter || d(w_ant, w) <= tol || abs(f(w) - f_ant) <= tol) break
+    
+  }
+  
+  list(w, f(w))
+}
+```
 
 
+## a) ¿Qué valor de la función $E(u,v)$ se obtiene después de 15 iteraciones completas (i.e. 30 pasos)?
+
+El valor que obtenemos es: 0.1478295.
+
+
+## b) Establezca una comparación entre esta técnica y la técnica de gradiente descendente.
+
+Lo que hemos hecho es llamar al gradiente descendente con los mismo parámetros que los empleados para la la llamada a Coordenada Descendente y los resultados obtenido son los siquientes:
+
+```{r}
+gradDesc(E, gradE, 0.1, c(1,1), 10^{-14}, 15)
+```
+
+con lo cual como podemos ver la convergencia es mucho más rápida pues emplea menos de 15 iteraciones antes de parar además de alcanzar un valor mucho menor de f. Es lógico que la convergencia sea más rápida ya que estamos cambiando ambas componentes del vector de pesos a la vez.
+
+##3. **Método de Newton** Implementar el algoritmo de Newton y aplicarlo a la función $f(x,y)$ dada en el ejercicio 1b. Desarolle los mismo experimentos usando los mismo puntos de inicio.
+
+## * Generar un gráfico de como desciende el valor de la función con las iteraciones.
+## * Extraer conclusiones sobre las conductas de los algoritmos comparando la curva de decrecimiento de la función calculada en el apartado anterior y la correspondiente obtenida con gradiente descendente.
+
+Lo que hacemos antes de definir el método es definir la matriz Hessiana de la función ya que este método hace uso de ella, así tenemos el siguiente código:
+
+```{r}
+Hf <- function(X) {
+  x = X[1]
+  y = X[2]
+  
+  matrix(c(2-8*pi*pi*sin(2*pi*y)*sin(2*pi*x), 8*pi*pi*cos(2*pi*y)*cos(2*pi*x), 
+           8*pi*pi*cos(2*pi*x)*cos(2*pi*y), 4-8*pi*pi*sin(2*pi*x)*sin(2*pi*y)),
+         2,2)
+}
+
+Newton <- function(f, gradf, Hf, eta, w0, tol, max_iter = 1000000, dibujar = FALSE){
+  w = w0
+  n_iters = 1
+  valores_f = NULL
+  
+  repeat {
+    w_ant = w 
+    f_ant = f(w)
+    
+    valores_f = c(valores_f, f_ant)
+    w = w-t(eta*ginv(Hf(w))%*%gradf(w))
+    n_iters = n_iters + 1
+    
+    if (f(w) < tol || n_iters == max_iter || d(w_ant, w) <= tol || abs(f(w) - f_ant) <= tol){
+      valores_f = c(valores_f, f(w))
+      break
+    } 
+  }
+  
+  if (dibujar)
+    plot(seq(n_iters), valores_f, type = "l", ylab = "Valor de f", xlab = "Iteraciones")
+ 
+}
+
+```
+
+
+```{r, echo=FALSE}
+par(mfrow=c(2,2))
+gradDesc(f, gradf, 0.01, c(0.1,0.1), 10**(-14), max_iter = 50, dibujar = TRUE)
+gradDesc(f, gradf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
+gradDesc(f, gradf, 0.01, c(-0.5,-0.5), 10**(-14), max_iter = 50, dibujar = TRUE)
+gradDesc(f, gradf, 0.01, c(-1,-1), 10**(-14), max_iter = 50, dibujar = TRUE)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(2,2))
+Newton(f, gradf, Hf, 0.01, c(0.1,0.1), 10**(-14), max_iter = 50, dibujar = TRUE)
+Newton(f, gradf, Hf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
+Newton(f, gradf, Hf, 0.01, c(-0.5,-0.5), 10**(-14), max_iter = 50, dibujar = TRUE)
+Newton(f, gradf, Hf, 0.01, c(-1,-1), 10**(-14), max_iter = 50, dibujar = TRUE)
+```
 
 
