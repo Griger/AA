@@ -381,3 +381,81 @@ Legendre <- function(x, grado) {
   LegendreRecursivo(x, grado)[1]
 }
 
+fL <- function(x, coef) {
+  Qf = length(coef)
+  sum(coef*unlist(lapply(seq(0,Qf-1), Legendre, x = x)))
+}
+
+ejercicio2.1 <- function() {
+  #damos valores a los parámetros del experimento
+  Qf = 20
+  N = 50
+  sigma = 1
+  
+  #generamos los coeficientes de la función f
+  term_normalizacion = sqrt(sum(1/(2*seq(0,Qf)+1)))
+  coef = runif(Qf)/term_normalizacion
+  
+  #generamos los datos
+  X = runif(N, -1, 1)
+  ruido = rnorm(N)
+  Y = unlist(lapply(X, fL, coef = coef)) + sigma*ruido
+  
+  Mgrado2 = matrix(X**rep(seq(0,2), each = N), nrow = N)
+  Mgrado10 = matrix(X**rep(seq(0,10), each = N), nrow = N)
+  
+  w2 = regressLin(Mgrado2, Y)
+  w10 = regressLin(Mgrado10, Y)
+  
+  print(t(w2))
+  print(t(w10))
+}
+
+ejercicio2.2 <- function() {
+  Qf = 20
+  N = 50
+  sigma = 1
+  
+  E_out_total_2 = 0
+  E_out_total_10 = 0
+  
+  
+  for (i in seq(1,100)) {
+    #generamos los coeficientes de la función f
+    term_normalizacion = sqrt(sum(1/(2*seq(0,Qf)+1)))
+    coef = runif(Qf)/term_normalizacion
+    
+    #generamos los datos
+    X = runif(N, -1, 1)
+    ruido = rnorm(N)
+    Y = unlist(lapply(X, fL, coef = coef)) + sigma*ruido
+    
+    Mgrado2 = matrix(X**rep(seq(0,2), each = N), nrow = N)
+    Mgrado10 = matrix(X**rep(seq(0,10), each = N), nrow = N)
+    
+    w2 = regressLin(Mgrado2, Y)
+    w10 = regressLin(Mgrado10, Y)
+    
+    #calculamos Eout
+    X_out = runif(100, -1,1)
+    Y_out = unlist(lapply(X_out, fL, coef = coef))
+    
+    Mgrado2_out = matrix(X_out**rep(seq(0,2), each = 100), nrow = 100)
+    Mgrado10_out = matrix(X_out**rep(seq(0,10), each = 100), nrow = 100)
+    
+    Y_out_w2 = apply(Mgrado2_out, 1, function(x) w2%*%x)
+    Y_out_w10 = apply(Mgrado10_out, 1, function(x) w10%*%x)
+    
+    E_out_w2 = sum((Y_out - Y_out_w2)^2)/100
+    E_out_w10 = sum((Y_out - Y_out_w10)^2)/100
+    
+    E_out_total_2 = E_out_total_2 + E_out_w2
+    E_out_total_10 = E_out_total_10 + E_out_w10
+  }
+  
+  cat("El error medio fuera de la muestra para H2 es: ", E_out_total_2/100, "\n")
+  cat("El error medio fuera de la muestra para H10 es: ", E_out_total_10/100, "\n")
+}
+
+#REGULARIZACIÓN Y SELECCIÓN DE MODELOS
+
