@@ -7,6 +7,12 @@ simula_unif <- function (N, dim, rango) {
   datos
 }
 
+simula_gaus <- function(N, dim, sigma) {
+  datos <- matrix(rnorm(N*dim, 0, sigma), ncol = dim, nrow = N)
+  datos
+}
+
+
 simula_recta <- function(rango = c(-50,50)) {
   coordenadas = simula_unif(2,2,rango) #generamos dos ptos en el cuadrado rangoxrango
   a = (coordenadas[2,2]-coordenadas[1,2])/(coordenadas[2,1]-coordenadas[1,1])#la pendiente (m)
@@ -420,7 +426,7 @@ ejercicio2.2 <- function() {
   E_out_total_10 = 0
   
   
-  for (i in seq(1,100)) {
+  for (i in seq(1,2)) {
     #generamos los coeficientes de la función f
     term_normalizacion = sqrt(sum(1/(2*seq(0,Qf)+1)))
     coef = runif(Qf)/term_normalizacion
@@ -428,12 +434,13 @@ ejercicio2.2 <- function() {
     #generamos los datos
     X = runif(N, -1, 1)
     ruido = rnorm(N)
-    Y = unlist(lapply(X, fL, coef = coef)) + sigma*ruido
+    Y_ruido = unlist(lapply(X, fL, coef = coef)) + sigma*ruido
     
     Mgrado2 = matrix(X**rep(seq(0,2), each = N), nrow = N)
     Mgrado10 = matrix(X**rep(seq(0,10), each = N), nrow = N)
     
     w2 = regressLin(Mgrado2, Y)
+    print(w2)
     w10 = regressLin(Mgrado10, Y)
     
     #calculamos Eout
@@ -459,3 +466,61 @@ ejercicio2.2 <- function() {
 
 #REGULARIZACIÓN Y SELECCIÓN DE MODELOS
 
+regressLinWeightDecay <- function(Z, label, lambda) {
+  ncol = ncol(Z)
+  ginv(t(Z)%*%Z + lambda*diag(ncol))%*%t(Z)%*%label
+}
+
+ejercicio3.1 <- function(term_norm = 0.05) {
+  Nexp = 10^3
+  d = 3
+  
+  Ns = seq(15,115,10)+d
+  results = lapply(Ns+1, function(i) rep(0,i))
+  wf = rnorm(d+1)
+  
+  varE1Ns = rep(0, length(Ns))
+  varEcvNs = rep(0,length(Ns))
+  
+  for (N in Ns) {
+    e1s = rep(0, Nexp)
+    e2s = rep(0, Nexp)
+    Ecvs = rep(0, Nexp)
+    
+    for (i in seq(1,Nexp)) {
+      X = simula_gaus(N, d, 1)
+      X = cbind(X, 1)
+      Y = apply(X, 1, function(x) wf%*%x)
+      Y_ruido = apply(X, 1, function(x) wf%*%x + 0.5*rnorm(1))
+      
+      idx = seq(1,N)
+      
+      Eis <- sapply(idx, function(i) {
+        wlin = regressLinWeightDecay(X[-i,], Y_ruido[-i], term_norm/N)
+        ei = (t(wlin)%*%X[i,] - Y_ruido[i])^2
+      })
+      
+      e1s[i] = Eis[1]
+      e2s[i] = Eis[2]
+      Ecvs[i] = mean(Eis)
+      
+      result = c(Eis, mean(Eis))
+      results[[N%/%10]] <- results[[N%/%10]] + result/Nexp
+    }
+    
+    varE1Ns[N%/%10] = var(e1s)
+    varEcvNs[N%/%10] = var(Ecvs)
+    
+    cat("Para N: ", N, "e1 medio es ", mean(e1s), " y su varianza ", varE1Ns[N%/%10], " \n")
+    cat("Para N: ", N, "e2 medio es ", mean(e2s), " y su varianza ", var(e2s), " \n")
+    cat("Para N: ", N, "e1 medio es ", mean(Ecvs), " y su varianza ", varEcvNs[N%/%10], " \n\n\n")
+  }
+  
+  plot(Ns, 100*Ns/(varE1Ns/varEcvNs))
+  
+  #dibujar número efectivo
+  
+  
+
+  results
+}

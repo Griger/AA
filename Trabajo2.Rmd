@@ -250,3 +250,35 @@ Newton(f, gradf, Hf, 0.01, c(-1,-1), 10**(-14), max_iter = 50, dibujar = TRUE)
 ```
 
 
+# REGULARIZACIÓN Y SELECCIÓN DE MODELOS
+
+## 1. Para $d = 3$ (dimensión) generar un conjunto de $N$ datos aleatorios $\lbrace x_n, y_n \rbrace$ de la siguiente forma. Para cada punto $x_n$ generamos coordenadas muestreando de forma independiente una $\mathcal(N)(0,1)$. De forma similar generamos un vector de pesos de $(d+1)$ dimensiones $w_f$, y el conjunto de valores $y_n = w^T_fx_n +\sigma \epsilon_n$, donde $\epsilon_n$ es un ruido que sigue también una $\mathcal(N)(0,1)$ y $\sigma^2$ es la varianza del ruido; fijar $\sigma = 0.5$. Usar regresión lineal con regularización "weight decay" para estimar $w_f$ con $w_{reg}$. Fijar el parámetro de regularización a $0.05/N$.
+
+## a) Para $N \in \lbrace d+15, d+25, ..., d+115 \rbrace$ calcular los errores $e_1, ..., e_N$ de validación cruzada y $E_{cv}$.
+
+## b) Repetir el experimento $10^3$ veces, anotando el promedi y la varianza de $e_1, e_2$ y $E_{cv}$ en todos los experimentos.
+
+## c) ¿Cuál debería ser la relación entre el promedio de los valores de $e_1$ y el de los valores de $E_{cv}$? ¿y el de los valores de $e_2$? Argumentar la respuesta en base a los resultados de los experimentos.
+
+Lo que ocurre es que para cada $e_i$ (que al fin y al cabo sólo se diferencian en qué elemento quitamos del conjunto de datos, elementos generados aleatoriamente) se da que $\mathbb{E}_\mathcal{D}[e_i] = \bar{E}_{out}(N-1)$, es decir, el promedio de $e_i$ nos da la media del error fuera de la muestra de la función estimada cuando estamos aprendiendo con conjuntos de datos de tamaño $N-1$, entonces como esto se da para todos los $e_i$ también se dará para su media, es decir, el $E_{cv}$. Con lo cual lo que ocurre es que estos promedios serán muy similares entre sí como podemos ver en los resultados de los experimentos.
+
+## d) ¿Qué es lo que contribuye a la varianza de los valores de $e_1$?
+
+$e_1$ es una medida del error de validación para el "primer conjunto de validación cruzada" creado sobre los datos, entonces la varianza estará influida tanto por las diferentes muestras que se generan como de las etiquetas con ruido (aleatorio) que les asignamos, puesto que $e_1$ viene determinado por el ajuste que hace la regresión líneal sobre los datos que le damos.
+
+## e) Si los errores de validación-cruzada fueran verdaderamente independientes, ¿cuál sería la relación entre la varianza de los valores de $e_1$ y la varianza de los de $E_{cv}$?
+
+
+
+## f) Una medida del número efectivo de muestras nuevas usadas en el cálculo de $E_{cv}$ es el cociente entre la varianza de $e_1$ y la varianza de $E_{cv}$. Explicar por qué, y dibujar, respecto de N, el número efectivo de nuevos ejemplos $\left( N_{eff} \right)$ como un porcentaje de $N$. NOTA: Debería encontrarse que $N_{eff}$ está cercano a $N$.
+
+## g) Si se incrementa la cantidad de regularización, ¿debería $N_{eff}$ subir o bajar? Argumentar la respuesta. Ejecutar el mismo experimento con $\lambda = 2.5/N$ y comparar los resultados del punto anterior para verificar la conjetura.
+
+
+
+
+
+
+
+
+
