@@ -259,6 +259,10 @@ Newton <- function(f, gradf, Hf, eta, w0, tol, max_iter = 1000000, dibujar = FAL
     } 
   }
   
+  cat("Num de iters empleado", n_iters, "\n")
+  cat("Valor de f alcanzado", f(w), "\n")
+  cat("w obtenido", w, "\n")
+  
   if (dibujar)
     plot(seq(n_iters), valores_f, type = "l", ylab = "Valor de f", xlab = "Iteraciones")
   
@@ -278,9 +282,11 @@ Regresion Logistica
 RL <- function(datos, et, eta, w0, tol) {
   N = nrow(datos)
   w = w0
+  n_etapas = 0
   
   repeat{
     w_ant = w
+    n_etapas = n_etapas + 1
     
     for (i in sample(N)) {
       gt = (-et[i]*datos[i,])/(1+exp(et[i]*w%*%datos[i,]))
@@ -291,11 +297,12 @@ RL <- function(datos, et, eta, w0, tol) {
       break
   }
   
-  w
+  list(w, n_etapas)
 }
 
 ejercicio1.4 <- function(){
   err_out_medio = 0
+  n_etapas_medio = 0
   n_experimentos = 100
   
   for (i in seq(n_experimentos)) {
@@ -306,14 +313,17 @@ ejercicio1.4 <- function(){
     ets <- mapply(f0, recta[2], recta[1], datos[,1], datos[,2])
     ets_out <- mapply(f0, recta[2], recta[1], datos_out[,1], datos_out[,2])
     
-    w = RL(datos, ets, 0.01, c(0,0), 0.01)
+    result = RL(datos, ets, 0.01, c(0,0), 0.01)
+    w = result[[1]]
     ets_reg_out <- apply(datos_out, 1, h, w = w) #obtenemos las etiquetas que el vector dado por la regresion le da a los datos fuera de la muestra
     ets_reg_out[which(ets_reg_out == -1)] = 0
-
+    
+    n_etapas_medio = n_etapas_medio + result[[2]]
     err_out_medio = err_out_medio + length(which(ets_reg_out != ets_out))
   }
   
-  err_out_medio/n_experimentos
+  cat("El número medio de etapas que consume RL antes de converger es: ", n_etapas_medio/n_experimentos, "\n")
+  cat("El error medio fuera de la muestra para RL es: ", err_out_medio/n_experimentos, "\n")
 }
 
 #Ejercicio 1.5
@@ -354,17 +364,34 @@ ejercicio1.5 <- function(){
   simetrias_test <- unlist(lapply(imagenes_test, getSimetria))
 
   datos <- cbind(medias_train, simetrias_train, 1)
+  datos_test <- cbind(medias_test, simetrias_test, 1)
 
-  w_ini <- t(regressLin(datos, et)) #calculamos el vector de pesos dado por la regresión
-  w <- ajusta_PLA_MOD(datos, et, 100, w_ini)[[1]] #medimos el numero medio de iteraciones
+  w_ini <- t(regressLin(datos, et_train)) #calculamos el vector de pesos dado por la regresión
+  w <- ajusta_PLA_MOD(datos, et_train, 100, w_ini)[[1]] #medimos el numero medio de iteraciones
   
-  plot(medias_train, simetrias_train, col = et_train+8, xlab = 'Intensidad promedio', ylab = 'Simetria', main = "Datos Train")
+  Y_wlin_train = apply(datos, 1, h, w = w) #etiquetas dadas por el vector de pesos
+  Y_wlin_test = apply(datos_test, 1, h, w = w) #etiquetas dadas por el vector de pesos
+  
+  E_in = length(which(et_train != Y_wlin_train))
+  E_test = length(which(et_test != Y_wlin_test))
+  cat("El error dentro de la muestra es, E_in: ", E_in, "\n")
+  cat("El error fuera  de la muestra es, E_test: ", E_test, "\n")
+  
+  par(mfrow = c(1,2))
+  plot(medias_train, simetrias_train, col = et_train+5, xlab = 'Intensidad promedio', ylab = 'Simetria', main = "Datos Train")
+  plotw(w)
+  
+  plot(medias_test, simetrias_test, col = et_test+5, xlab = 'Intensidad promedio', ylab = 'Simetria', main = "Datos Test")
   plotw(w)
   
   
+  N_train = length(medias_train) #numero de datos de entrenamiento que tenemos
+  N_test = length(medias_test) #numero de dato de test que tenemos 
   
-  plot(medias_test, simetrias_test, col = et_test+8, xlab = 'Intensidad promedio', ylab = 'Simetria', main = "Datos Test")
-  plotw(w)
+  cat("Usando E_in enemos que Eout <= ", E_in + sqrt((8/N_train)*log((4*((2*N_train)^3+1))/0.05)), "\n" )
+  
+  eps = sqrt(log(0.05/2)/(-2*N_test))
+  cat("Usando E_test enemos que E_out <=", E_test + eps, "\n")
 }
 
 #SOBREAJUSTE
@@ -413,8 +440,8 @@ ejercicio2.1 <- function() {
   w2 = regressLin(Mgrado2, Y)
   w10 = regressLin(Mgrado10, Y)
   
-  print(t(w2))
-  print(t(w10))
+  cat("g2 ", t(w2), "\n")
+  cat("g10", t(w10), "\n")
 }
 
 ejercicio2.2 <- function() {
@@ -426,7 +453,7 @@ ejercicio2.2 <- function() {
   E_out_total_10 = 0
   
   
-  for (i in seq(1,2)) {
+  for (i in seq(1,200)) {
     #generamos los coeficientes de la función f
     term_normalizacion = sqrt(sum(1/(2*seq(0,Qf)+1)))
     coef = runif(Qf)/term_normalizacion
@@ -439,9 +466,8 @@ ejercicio2.2 <- function() {
     Mgrado2 = matrix(X**rep(seq(0,2), each = N), nrow = N)
     Mgrado10 = matrix(X**rep(seq(0,10), each = N), nrow = N)
     
-    w2 = regressLin(Mgrado2, Y)
-    print(w2)
-    w10 = regressLin(Mgrado10, Y)
+    w2 = regressLin(Mgrado2, Y_ruido)
+    w10 = regressLin(Mgrado10, Y_ruido)
     
     #calculamos Eout
     X_out = runif(100, -1,1)
@@ -460,8 +486,8 @@ ejercicio2.2 <- function() {
     E_out_total_10 = E_out_total_10 + E_out_w10
   }
   
-  cat("El error medio fuera de la muestra para H2 es: ", E_out_total_2/100, "\n")
-  cat("El error medio fuera de la muestra para H10 es: ", E_out_total_10/100, "\n")
+  cat("El error medio fuera de la muestra para H2 es: ", E_out_total_2/200, "\n")
+  cat("El error medio fuera de la muestra para H10 es: ", E_out_total_10/200, "\n")
 }
 
 #REGULARIZACIÓN Y SELECCIÓN DE MODELOS
@@ -516,11 +542,10 @@ ejercicio3.1 <- function(term_norm = 0.05) {
     cat("Para N: ", N, "e1 medio es ", mean(Ecvs), " y su varianza ", varEcvNs[N%/%10], " \n\n\n")
   }
   
-  plot(Ns, 100*Ns/(varE1Ns/varEcvNs))
+  cat("Los Neff para los distintos N con los que trabajamos:\n ", varE1Ns/varEcvNs, "\n")
+  cat("La media de los anteriores valores es: ", mean(varE1Ns/varEcvNs))
   
   #dibujar número efectivo
-  
-  
-
-  results
+  par(mfrow = c(1,1))
+  plot(Ns, 100*Ns/(varE1Ns/varEcvNs))
 }

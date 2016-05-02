@@ -6,9 +6,109 @@ output: pdf_document
 ```{r, echo=FALSE}
 library('MASS')
 set.seed(41192)
+
+#Funciones externas
+simula_unif <- function (N, dim, rango) {
+  datos <- matrix(runif(N*dim, rango[1], rango[2]), ncol = dim, nrow = N)
+  datos
+}
+
+simula_gaus <- function(N, dim, sigma) {
+  datos <- matrix(rnorm(N*dim, 0, sigma), ncol = dim, nrow = N)
+  datos
+}
+
+
+simula_recta <- function(rango = c(-50,50)) {
+  coordenadas = simula_unif(2,2,rango) #generamos dos ptos en el cuadrado rangoxrango
+  a = (coordenadas[2,2]-coordenadas[1,2])/(coordenadas[2,1]-coordenadas[1,1])#la pendiente (m)
+  b = -a*coordenadas[1,1] + coordenadas[1,2] #el factor independiente en la ecuacion y = mx+b
+  
+  c(a,b)
+}
+
+f0 <- function(a, b, x, y) {
+  s = sign(y-b*x-a)
+  if (s == -1)
+    return(0)
+  else 
+    return(1)
+}
+
+getImagen <- function(datos) {
+  matrix(datos, ncol = 16) #le pasamos los datos y las columnas que tiene que tener la matriz que formemos con ellos
+}
+
+getSimetria <- function(m) {
+  -2*sum(abs(m[,seq(1,8)]-m[,seq(16,9)]))
+}
+
+h <- function(w, dato) {
+  sign(w%*%dato) #signo del producto escalar entre w y el dato
+}
+
+plotw <- function(w, color = 'black') {
+  if (w[2] != 0) #si podemos despejar el termino que va con y
+    abline(a = -w[1]/w[2], b = -w[3]/w[2], col = color)
+  else if (w[1] != 0) #si lo que tenemos es una recta vertical
+    abline(v = -w[3]/w[1], col = color)
+  else
+    print("No hay linea.")
+}
+
+ajusta_PLA_MOD <- function(datos, label, max_iter, vini) {
+  w <- vini
+  mejor_w <- w
+  num_datos <- nrow(datos)
+  min_errores <- num_datos
+  encontrado = FALSE
+  iter = 1
+  
+  while (!encontrado && iter < max_iter) {
+    encontrado <- TRUE
+    
+    for (i in seq_len(num_datos))
+      if (h(w, datos[i,]) != label[i]) {
+        w <- w + label[i]*datos[i,]
+        
+        #por cada modificacion contamos el numero de errores del nuevo w
+        errores_w = length(which(label != apply(datos, 1, h, w = w)))
+        
+        #si es menor que el que teniamos el mejor w encontrado se actualiza con el nuevo
+        if (errores_w < min_errores) {
+          mejor_w <- w
+          min_errores = errores_w
+        }
+        
+        encontrado <- FALSE
+      }
+    
+    iter = iter + 1
+  }
+  
+  
+  list(mejor_w,iter)
+}
+
+#funcion que calcula la recta de regresion con las formulas vistas en clase
+regressLin <- function(datos, label) {
+  #obtenemos la descomposicion SVD de la matriz
+  svd(datos) -> S
+  
+  #fabricamos una matriz diagonal con la diagonal del SVD redondeando los valores
+  diag(round(S$d, digits = 5)) -> D
+  #calculamos la pseudo-inversa de la matriz D con el ginv del paquete MASS
+  ginv(D) -> gD
+  #calculamos (t(datos) * datos)^-1 con la formula vista en clase V*D^-2*t(V)
+  S$v%*%gD%*%gD%*%t(S$v) -> A
+  #obtenemos el vector que nos da el hiperplano de regresion con la formula w = (t(X)X)^-1t(X)y
+  A%*%t(datos)%*%label -> wlin
+  
+  wlin
+}
 ```
 
-# 1. MODELOS LINEALES
+# MODELOS LINEALES
 
 ## 1. **Gradiente descendente** Implementar el algoritmo de gradiente descendente. 
 ## a) Considerar la función no lineal de error $E(u,v) = (ue^v-2ve^{-u})^2$. Usar gradiente descendente y minimizar esta función de error, comenzando desde el punto $(u,v) = (1,1)$ y usando una tasa de aprendizaje $\eta = 0.1$.
@@ -130,7 +230,7 @@ Lo que ocurre es que la tasa de aprendizaje nos define la longitud de los "salto
 
 Lo que si observamos es que, en esta ocasión, llegamos a un valor por debajo del establecido en un menor número de iteraciones puesto que el dar "saltos" de mayor longitud nos ha llevado a una "zona" de la función de valores menores y hemos alcanzado un valor bajo más rápido, pero pensemos por ejemplo en la función $x^2$ que tiene sólo un mínimo en el cero y que quisiéramos alcanzar dicho mínimo, entonces quizás con una tasa de aprendizaje tan grande no llegaríamos nunca a alcanzarlo.
 
-### 2) Obtener el valor mínimo y los valors de las variables que lo alcanzan cuando el punto de inicio se fija: (0.1,0.1), (1,1), (-0.5, -0.5), (-1,-1). Generar una tabla con los valores obtenidos. ¿Cuál sería su conclusión sobre la verdadera dificultad de encontrar el mínimo global de una función arbitraria?
+### 2) Obtener el valor mínimo y los valores de las variables que lo alcanzan cuando el punto de inicio se fija: (0.1,0.1), (1,1), (-0.5, -0.5), (-1,-1). Generar una tabla con los valores obtenidos. ¿Cuál sería su conclusión sobre la verdadera dificultad de encontrar el mínimo global de una función arbitraria?
 
 ```{r, echo=FALSE}
 gradDesc(f, gradf, 0.01, c(0.1,0.1), 10**(-14), max_iter = 50, dibujar = FALSE)
@@ -175,6 +275,10 @@ coordDesc <- function(f, gradf, eta, w0, tol, max_iter = 1000000) {
 
 
 ## a) ¿Qué valor de la función $E(u,v)$ se obtiene después de 15 iteraciones completas (i.e. 30 pasos)?
+
+```{r, echo=FALSE}
+coordDesc(E, gradE, 0.1, c(1,1), 10**(-14), 15)
+```
 
 El valor que obtenemos es: 0.1478295.
 
@@ -225,6 +329,10 @@ Newton <- function(f, gradf, Hf, eta, w0, tol, max_iter = 1000000, dibujar = FAL
     } 
   }
   
+  cat("Num de iters empleado", n_iters, "\n")
+  cat("Valor de f alcanzado", f(w), "\n")
+  cat("w obtenido", w, "\n")
+  
   if (dibujar)
     plot(seq(n_iters), valores_f, type = "l", ylab = "Valor de f", xlab = "Iteraciones")
  
@@ -232,6 +340,7 @@ Newton <- function(f, gradf, Hf, eta, w0, tol, max_iter = 1000000, dibujar = FAL
 
 ```
 
+Con gradiente descendente:
 
 ```{r, echo=FALSE}
 par(mfrow=c(2,2))
@@ -241,6 +350,8 @@ gradDesc(f, gradf, 0.01, c(-0.5,-0.5), 10**(-14), max_iter = 50, dibujar = TRUE)
 gradDesc(f, gradf, 0.01, c(-1,-1), 10**(-14), max_iter = 50, dibujar = TRUE)
 ```
 
+Con el método de Newton:
+
 ```{r, echo=FALSE}
 par(mfrow=c(2,2))
 Newton(f, gradf, Hf, 0.01, c(0.1,0.1), 10**(-14), max_iter = 50, dibujar = TRUE)
@@ -249,6 +360,311 @@ Newton(f, gradf, Hf, 0.01, c(-0.5,-0.5), 10**(-14), max_iter = 50, dibujar = TRU
 Newton(f, gradf, Hf, 0.01, c(-1,-1), 10**(-14), max_iter = 50, dibujar = TRUE)
 ```
 
+Como podemos ver gradiente descendente nuevamente converge más rápido y obtiene un valor más pequeño de la función, en cambio el método de Newton consume el máximo número de iteraciones permitidas. Lo que sí observamos es como el decrecimiento que experimenta Newton es mucho más suave (también se obtienen más puntos) y siempre desciende. En cambio como vemos el método de gradiente descendente tiene etapas donde se mantiene más o menos contante para luego caer abruptamente y converger.
+
+## 4. \textbf{Regresión Logística}: En este ejercicio crearemos nuestra propia función objetivo $f$ (probabilística en este caso) y nuestro conjunto de datos $\mathcal{D}$ para ver cómo funciona regresión logística. Supondremos por simplicidad que $f$ es una probabilidad con valores $0/1$ y por tanto que $y$ es una función determinista de $x$.
+## Consideramos $d=2$ para que los datos sean visualizables, y sea $\mathcal{X} = [-1,1]\mathrm{x}[-1,1]$ con probabilidad uniforme de elegir cada $x \in \mathcal{X}$. Elegir una línea en el plano como la frontera entre $f(x) = 1$ (donde $y$ toma valor +1) y $f(x) = 0$ (donde $y$ toma valor -1), para ello seleccionar dos puntos aleatorios del plano y calcular la línea que pasa por ambos.
+## Seleccionar $N = 100$ punto aleatorios $\lbrace x_n \rbrace$ de $\mathcal{X}$ y evaluar las respuestas de todos ellos $\lbrace y_n \rbrace$ respecto de la frontera elegida.
+
+## a) Implementar Regresión Logística (RL) con Gradiente Descendente Estocástico (SGD) bajo las siguientes condiciones:
+* Inicializar el vector de pesos con valores 0.
+* Parar el algoritmo cuando $||w^{(t-1)} - w^{(t)}|| < 0.01$, donde $w^{(t)} denota el vector de pesos al final de la época $t$. Una época es una pase completo a través de los $N$ datos.
+* Aplicar una permutación aleatoria de $1,2,...,N$ a los datos antes de usarlos en cada época del algoritmo.
+* Usar una tasa de aprendizaje de $\eta = 0.01$.
+
+```{r}
+RL <- function(datos, et, eta, w0, tol) {
+  N = nrow(datos)
+  w = w0
+  n_etapas = 0
+  
+  repeat{
+    w_ant = w
+    n_etapas = n_etapas + 1
+    
+    for (i in sample(N)) {
+      gt = (-et[i]*datos[i,])/(1+exp(et[i]*w%*%datos[i,]))
+      w = w - eta*gt
+    }
+    
+    if (d(w, w_ant) < tol)
+      break
+  }
+  
+  list(w, n_etapas)
+}
+```
+
+## b) Usar la muestra de datos etiquetada para encontrar $g$ y estimar $E_{out}$ usando para ello un número suficientemente grande de nuevas muestras.
+
+## c) \textit{(Opcional 0.2)} Repetir el experimento 100 veces con diferentes funciones frontera y calcule el promedio.
+### 1) ¿Cuál es el valor de $E_{out}$ para $N = 100$?
+### 2) ¿Cuántas épocas tarda en promedio RL en converger para $N = 100$, usando todas las condiciones anteriormente especificadas?
+
+```{r, echo=FALSE}
+ejercicio1.4 <- function(){
+  err_out_medio = 0
+  n_etapas_medio = 0
+  n_experimentos = 100
+  
+  for (i in seq(n_experimentos)) {
+    datos <- simula_unif(100, 2, c(-1,1))
+    datos_out <- simula_unif(100,2,c(-1,1))
+    
+    recta <- simula_recta(c(-1,1))
+    ets <- mapply(f0, recta[2], recta[1], datos[,1], datos[,2])
+    ets_out <- mapply(f0, recta[2], recta[1], datos_out[,1], datos_out[,2])
+    
+    result = RL(datos, ets, 0.01, c(0,0), 0.01)
+    w = result[[1]]
+    ets_reg_out <- apply(datos_out, 1, h, w = w) #obtenemos las etiquetas que el vector dado por la regresion le da a los datos fuera de la muestra
+    ets_reg_out[which(ets_reg_out == -1)] = 0
+    
+    n_etapas_medio = n_etapas_medio + result[[2]]
+    err_out_medio = err_out_medio + length(which(ets_reg_out != ets_out))
+  }
+  
+  cat("El número medio de etapas que consume RL antes de converger es: ", n_etapas_medio/n_experimentos, "\n")
+  cat("El error medio fuera de la muestra para RL es: ", err_out_medio/n_experimentos, "\n")
+}
+
+ejercicio1.4()
+```
+
+## 5) \textbf{Clasificación de dígitos}. Considerar el conjunto de datos de los dígitos manuscritos y seleccionar las muestras de los dígitos 1 y 5. Usar los ficheros de entrenamiento (training) y test que se proporcionan. Extraer las características de \textbf{intensidad promedio} y \textbf{simetría} en la manera que se indicó en el ejercicio 3 del trabajo 1.
+##Plantear un problema de clasificación binaria que considere el conjunto de entrenamiento como datos de entrada para aprender la función $g$. Usando el modelo de Regresión Lineal para clasificación seguido por PLA-Pocket como mejora. Responder a las siguientes cuestiones.
+
+## a) Generar gráficos separados (en color) de los datos de entrenamiento y test junto con la función estimada.
+
+## b) Obtener $E_{in}$ y $E_{test}$ (error sobre los datos de test).
+
+## c) Obtener cotas sobre el verdadero valor de $E_{out}$. Pueden calcularse dos cotas una basada en $E_{in}$ y otra basada en $E_{test}$. Usar una tolerancia $\delta = 0.05$. ¿Qué cota es mejor?
+
+Tenemos que cuando estamos trabajando con el error dentro de la muestra de entrenamiento la cota que tenemos es la siguiente:
+
+$E_{out} \leq \sqrt{\dfrac{8}{N}ln\left( \dfrac{4(2N^{d_{VC}}+1)}{\delta} \right)}$
+
+en nuestro caso $\delta$ es 0.05 y $N$ es el número de datos de entrenamiento de los que disponemos. Por otro lado como estamos trabajando con hiperplanos de dimensión 2, rectas, tenemos que la $d_{VC}$ es 3.
+
+Por otro lado como podemos ver en el libro Learning from data, si trabajamos con $E_{test}$ entonces podemos emplear sin más la desigualdad de Hoeffding:
+
+$\mathbb{P} \left( |E_{out} - E_{test}| \geq \varepsilon \right) \leq 2e^{-2\varepsilon^2N}$
+
+donde ahora N es el número de datos de entrenamiento que tengamos y el $\varepsilon$ será aquel que obtengamos al imponer que el término derecho de la desigualdad sea 0.05, la tolerancia que buscamos.
+
+```{r, echo=FALSE}
+datos_test <- read.table("/media/griger/Datos/Documentos/Facultad/5DGIIYM/AA/P/AA/datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
+datos_train <- read.table("/media/griger/Datos/Documentos/Facultad/5DGIIYM/AA/P/AA/datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
+```
+
+
+```{r}
+ejercicio1.5 <- function(){
+  
+  instancias_train <- datos_train[(datos_train[,1] == 1 | datos_train[,1] == 5),]
+  instancias_test <- datos_test[(datos_test[,1] == 1 | datos_test[,1] == 5),]
+
+  m_datos_train <- data.matrix(instancias_train)
+  m_datos_test <- data.matrix(instancias_test)
+
+  m_datos_train[,2:257] <- 0.5*(1-m_datos_train[,2:257])
+  m_datos_test[,2:257] <- 0.5*(1-m_datos_test[,2:257])
+
+  et_train <- m_datos_train[,1]
+  et_train[et_train == 5] = -1
+  et_test <- m_datos_test[,1]
+  et_test[et_test == 5] = -1
+
+  imagenes_train <- list()
+  imagenes_test <- list()
+
+  for (i in seq(1, nrow(m_datos_train)))
+    imagenes_train <- c(imagenes_train, list(getImagen(m_datos_train[i,2:257])))
+
+  for (i in seq(1, nrow(m_datos_test)))
+    imagenes_test <- c(imagenes_test, list(getImagen(m_datos_test[i,2:257])))
+
+  medias_train <- unlist(lapply(imagenes_train, mean))
+  simetrias_train <- unlist(lapply(imagenes_train, getSimetria))
+
+  medias_test <- unlist(lapply(imagenes_test, mean))
+  simetrias_test <- unlist(lapply(imagenes_test, getSimetria))
+
+  datos <- cbind(medias_train, simetrias_train, 1)
+  datos_test <- cbind(medias_test, simetrias_test, 1)
+
+  w_ini <- t(regressLin(datos, et_train)) #calculamos el vector de pesos dado por la regresión
+  w <- ajusta_PLA_MOD(datos, et_train, 100, w_ini)[[1]] #medimos el numero medio de iteraciones
+  
+  Y_wlin_train = apply(datos, 1, h, w = w) #etiquetas dadas por el vector de pesos
+  Y_wlin_test = apply(datos_test, 1, h, w = w) #etiquetas dadas por el vector de pesos
+  
+  E_in = length(which(et_train != Y_wlin_train))
+  E_test = length(which(et_test != Y_wlin_test))
+  cat("El error dentro de la muestra es, E_in: ", E_in, "\n")
+  cat("El error fuera  de la muestra es, E_test: ", E_test, "\n")
+  
+  par(mfrow = c(1,2))
+  plot(medias_train, simetrias_train, col = et_train+5, xlab = 'Intensidad promedio', ylab = 'Simetria', main = "Datos Train")
+  plotw(w)
+  
+  plot(medias_test, simetrias_test, col = et_test+5, xlab = 'Intensidad promedio', ylab = 'Simetria', main = "Datos Test")
+  plotw(w)
+  
+  
+  N_train = length(medias_train) #numero de datos de entrenamiento que tenemos
+  N_test = length(medias_test) #numero de dato de test que tenemos 
+  
+  cat("Usando E_in enemos que Eout <= ", E_in + sqrt((8/N_train)*log((4*((2*N_train)^3+1))/0.05)), "\n" )
+  
+  eps = sqrt(log(0.05/2)/(-2*N_test))
+  cat("Usando E_test enemos que E_out <=", E_test + eps, "\n")
+}
+```
+
+```{r, echo=FALSE}
+ejercicio1.5()
+```
+
+
+Entonces tenemos que nosotros obtenemos mejor cota empleando $E_{in}$.
+
+# SOBREAJUSTE
+
+## 1. \textbf{Sobreajuste}. Vamos a construir un entorno que nos permita experimentar con los problemas de sobreajuste. Consideremos el espacio de entrada $\mathcal{X} = [-1,1]$ con una densidad de probabilidad uniforme, $\mathbb{P} = \dfrac{1}{2}$. Consideramos dos modelos $\mathcal{H}_2$ y $\mathcal{H}_{10}$ representando el conjunto de todos los polinomios de grado 2 y grado 10 respectivamente. La función objetivo es un polinomio de grado $Q_f$ que escribimos como $f(x) = \sum_{q=0}^{Q_f} a_qL_q(x)$, donde $L_q(x) son los polinomio sde Legendre. El conjunto de datos es $\mathcal{D} = \lbrace (x_1, y_1), ..., (x_N,y_N) \rbrace$ donde $y_n = f(x_n) + \sigma \varepsilon_n$ y las $\lbrace \varepsilon_n \rbrace$ son variables aleatorias i.i.d. $\mathcal{N}(0,1)$ y $\sigma^2$ la varianza del ruido.
+##Comenzamos realizando un experimento donde suponemos que los valores $Q_f, N, \sigma,$ están especificados, para ello:
+* Generamos los coeficientes $a_q$ a partir de muestras de una distribución $\mathcal{N}(0,1)$ y escalamos dichos coeficientes de manera que $\mathbb{E}_{a,x}[f^2] = 1$. (Ayuda: Dividir los coeficientes por $\sqrt{\sum_{q=0}^{Q_f}\dfrac{1}{2q+1}}$).
+* Generamos un conjunto de datos $x_1, ..., x_N$ muestreando de forma independiente $\mathbb(x)$ y los valores $y_n = f(x_n) + \sigma \varepsilon_n$.
+
+## Sean $g_2$ y $g_{10}$ los mejores ajustes a los datos usando $\mathcal{H}_2$ y $\mathcal{H}_{10}$ respectivamente, y sean $E_{out}(g_2)$ y $E_{out}(g_{10})$ sus respectivos errores fuera de la muestra.
+
+## a) Calcular $g_2$ y $g_{10}$
+
+En primer lugar veamos las funciones que definimos para calcular de una forma recursiva y eficiente el valor de un determinado polinomio de Legendre así como un valor de la función $f$ que es nuestra función objetivo:
+
+```{r}
+#función recursiva para calcular el valor de un Polinomio de Legendre
+LegendreRecursivo <- function(x, grado) {
+  if (grado == 0)
+    return(c(1,1))
+  else if (grado == 1)
+    return(c(x,1))
+  else
+    n = grado-1
+    componentes = LegendreRecursivo(x, n)
+    mi_valor = (2*n+1)/(n+1)*x*componentes[1]-n/(n+1)*componentes[2]
+    return(c(mi_valor, componentes[1]))
+}
+
+#función para obtener el valor de un polinomio de Legendre sin tener que usar el vector devuelto por la anterior
+Legendre <- function(x, grado) {
+  LegendreRecursivo(x, grado)[1]
+}
+
+fL <- function(x, coef) {
+  Qf = length(coef)
+  sum(coef*unlist(lapply(seq(0,Qf-1), Legendre, x = x)))
+}
+```
+
+```{r}
+ejercicio2.1 <- function() {
+  #damos valores a los parámetros del experimento
+  Qf = 20
+  N = 50
+  sigma = 1
+  
+  #generamos los coeficientes de la función f
+  term_normalizacion = sqrt(sum(1/(2*seq(0,Qf)+1)))
+  coef = runif(Qf)/term_normalizacion
+  
+  #generamos los datos
+  X = runif(N, -1, 1)
+  ruido = rnorm(N)
+  Y = unlist(lapply(X, fL, coef = coef)) + sigma*ruido
+  
+  Mgrado2 = matrix(X**rep(seq(0,2), each = N), nrow = N)
+  Mgrado10 = matrix(X**rep(seq(0,10), each = N), nrow = N)
+  
+  w2 = regressLin(Mgrado2, Y)
+  w10 = regressLin(Mgrado10, Y)
+  
+  cat("g2 ", t(w2), "\n")
+  cat("g10", t(w10), "\n")
+}
+```
+
+```{r, echo=FALSE}
+ejercicio2.1()
+```
+
+## b) ¿Por qué normalizamos $f$? (Ayuda: interpretar el significado de $\sigma$).
+
+Dado que estamos muestreando el ruido en el intervalo [-1,1] el sigma nos dice la verdadera distorsión o el "coeficiente de distorsión" real que tenemos en los datos, ya que ahora el ruido estará en el intervalo $[-\sigma, \sigma]$ con lo que a más sigma más distorsión tendremos en los datos.
+
+En el libro Learning from data podemos ver que esta normalización lo que hace es que el nivel de ruido se equilibre al ruido de la señal $f$, en mi opinión lo que estamos haciendo al normalizar la f es que este ruido no sea tan grande, o al menos que la distorsión sea menor al estar "restringiendo" los valores que puede tomar la $f$, de este modo paliamos un poco el efecto del ruido.
+
+## 2. Siguiendo con el punto anterior, usando la combinación de parámetros $Q_f = 20, N = 50, \sigma = 1$ ejecutar un número de experimentos (> 100) calculando en cada caso $E_{out}(g_2)$ y $E_{out}(g_{10})$. Promediar todos los valores de error obtenidos para cada conjunto de hipótesis, es decir, 
+## $E_{out}(\mathcal{H}_2)$ = promedio sobre experimentos ($E_{out}(g_2)$).
+## $E_out(\mathcal{H}_{10})$ = promedio sobre experimentos ($E_{out}(g_{10})$).
+
+## Definimos una medida de sobreajuste como $E_out(\mathcal{H}_{10}) - E_out(\mathcal{H}_2)$.
+
+## a) Argumentar por qué la medida dada puede medir el sobreajuste.
+
+```{r}
+ejercicio2.2 <- function() {
+  Qf = 20
+  N = 50
+  sigma = 1
+  
+  E_out_total_2 = 0
+  E_out_total_10 = 0
+  
+  
+  for (i in seq(1,200)) {
+    #generamos los coeficientes de la función f
+    term_normalizacion = sqrt(sum(1/(2*seq(0,Qf)+1)))
+    coef = runif(Qf)/term_normalizacion
+    
+    #generamos los datos
+    X = runif(N, -1, 1)
+    ruido = rnorm(N)
+    Y_ruido = unlist(lapply(X, fL, coef = coef)) + sigma*ruido
+    
+    Mgrado2 = matrix(X**rep(seq(0,2), each = N), nrow = N)
+    Mgrado10 = matrix(X**rep(seq(0,10), each = N), nrow = N)
+    
+    w2 = regressLin(Mgrado2, Y_ruido)
+    w10 = regressLin(Mgrado10, Y_ruido)
+    
+    #calculamos Eout
+    X_out = runif(100, -1,1)
+    Y_out = unlist(lapply(X_out, fL, coef = coef))
+    
+    Mgrado2_out = matrix(X_out**rep(seq(0,2), each = 100), nrow = 100)
+    Mgrado10_out = matrix(X_out**rep(seq(0,10), each = 100), nrow = 100)
+    
+    Y_out_w2 = apply(Mgrado2_out, 1, function(x) w2%*%x)
+    Y_out_w10 = apply(Mgrado10_out, 1, function(x) w10%*%x)
+    
+    E_out_w2 = sum((Y_out - Y_out_w2)^2)/100
+    E_out_w10 = sum((Y_out - Y_out_w10)^2)/100
+    
+    E_out_total_2 = E_out_total_2 + E_out_w2
+    E_out_total_10 = E_out_total_10 + E_out_w10
+  }
+  
+  cat("El error medio fuera de la muestra para H2 es: ", E_out_total_2/200, "\n")
+  cat("El error medio fuera de la muestra para H10 es: ", E_out_total_10/200, "\n")
+}
+```
+
+```{r,echo=FALSE}
+ejercicio2.2()
+```
+
+Podemos medir con esto el sobreajuste ya que podemos comprobar si aplicando un modelo mucho más complejo obtenemos un error fuera de la muestra mayor que en esencia es lo nos indica que tenemos sobreajuste, en un caso normal tendríamos que con un modelo más grande tendríamos un mejor error fuera de la muestra, pero cuando se da sobreajuste entonces sucede lo contrario, los modelos simples son los que tienen mejor capacidad de generalización.
 
 # REGULARIZACIÓN Y SELECCIÓN DE MODELOS
 
@@ -268,13 +684,93 @@ $e_1$ es una medida del error de validación para el "primer conjunto de validac
 
 ## e) Si los errores de validación-cruzada fueran verdaderamente independientes, ¿cuál sería la relación entre la varianza de los valores de $e_1$ y la varianza de los de $E_{cv}$?
 
+Para este apartado vamos a usar la siguiente fórmula $Var \left( \sum_{i = 1}^N a_iX_i \right) = \sum_{i = 1}^N a_i^2Var(X_i) + 2\sum_{1 \leq i < j \leq N} a_ia_jCov(X_i, X_j)$, en nuestro caso como asumimos que son independientes entonces los términos de las covarianzas desaparecen y si tenemos en cuenta que las varianzas de los $e_i$ serán todas iguales entonces lo que tenemos es que:
 
+$Var(E_{cv}) = \dfrac{1}{N}Var(e_1)$
 
 ## f) Una medida del número efectivo de muestras nuevas usadas en el cálculo de $E_{cv}$ es el cociente entre la varianza de $e_1$ y la varianza de $E_{cv}$. Explicar por qué, y dibujar, respecto de N, el número efectivo de nuevos ejemplos $\left( N_{eff} \right)$ como un porcentaje de $N$. NOTA: Debería encontrarse que $N_{eff}$ está cercano a $N$.
 
+Lo primero que tenemos que hacer es definir la función que realiza la regresión lineal con la condición de regularización weight decay, simplemente siguiendo la fórmula vista en teoría:
+
+```{r}
+regressLinWeightDecay <- function(Z, label, lambda) {
+  ncol = ncol(Z)
+  ginv(t(Z)%*%Z + lambda*diag(ncol))%*%t(Z)%*%label
+}
+```
+
+Entonces todos los apartados del ejercicio se tienen en la siguiente función:
+
+```{r}
+ejercicio3.1 <- function(term_norm = 0.05) {
+  Nexp = 10^3
+  d = 3
+  
+  Ns = seq(15,115,10)+d
+  results = lapply(Ns+1, function(i) rep(0,i))
+  wf = rnorm(d+1)
+  
+  varE1Ns = rep(0, length(Ns))
+  varEcvNs = rep(0,length(Ns))
+  
+  for (N in Ns) {
+    e1s = rep(0, Nexp)
+    e2s = rep(0, Nexp)
+    Ecvs = rep(0, Nexp)
+    
+    for (i in seq(1,Nexp)) {
+      X = simula_gaus(N, d, 1)
+      X = cbind(X, 1)
+      Y = apply(X, 1, function(x) wf%*%x)
+      Y_ruido = apply(X, 1, function(x) wf%*%x + 0.5*rnorm(1))
+      
+      idx = seq(1,N)
+      
+      Eis <- sapply(idx, function(i) {
+        wlin = regressLinWeightDecay(X[-i,], Y_ruido[-i], term_norm/N)
+        ei = (t(wlin)%*%X[i,] - Y_ruido[i])^2
+      })
+      
+      e1s[i] = Eis[1]
+      e2s[i] = Eis[2]
+      Ecvs[i] = mean(Eis)
+      
+      result = c(Eis, mean(Eis))
+      results[[N%/%10]] <- results[[N%/%10]] + result/Nexp
+    }
+    
+    varE1Ns[N%/%10] = var(e1s)
+    varEcvNs[N%/%10] = var(Ecvs)
+    
+    cat("Para N: ", N, "e1 medio es ", mean(e1s), " y su varianza ", varE1Ns[N%/%10], " \n")
+    cat("Para N: ", N, "e2 medio es ", mean(e2s), " y su varianza ", var(e2s), " \n")
+    cat("Para N: ", N, "e1 medio es ", mean(Ecvs), " y su varianza ", varEcvNs[N%/%10], " \n\n\n")
+  }
+  
+  cat("Los Neff para los distintos N con los que trabajamos:\n ", varE1Ns/varEcvNs, "\n")
+  cat("La media de los anteriores valores es: ", mean(varE1Ns/varEcvNs))
+  
+  #dibujar número efectivo
+  par(mfrow = c(1,1))
+  plot(Ns, 100*Ns/(varE1Ns/varEcvNs))
+}
+```
+
+```{r, echo=FALSE}
+ejercicio3.1()
+```
+
+Es claro por lo que hemos dicho antes que en caso de que los $e_i$ fuesen independientes entonces se tendría que este estimador da N, que como podemos ver en el libro Learning from data es el extremo superior para este estimador (siendo el menor 1), con lo cual parece indicar que estamos en el camino correcto.
+
+En mi opinión esto establece un buen estimador ya que en caso de que hubiese relación entre los distintos errores entonces se tendría que en la fórmula que hemos dado antes para la varianza de $E_{cv}$ no desaparecerían todos los términos de varianza, haciendo este valor más pequeño (suponiendo que las varianzas sean positivas). De algún modo el estimador mide cómo participa la varianza de $e_1$ en la de $E_{cv}$ en caso de no ser independientes entonces no participa tanto puesto que "unas varianzas se podrían solapar con otras", en cambio como hemos dicho en caso de ser independientes sí que se tiene el máximo valor posible.
+
 ## g) Si se incrementa la cantidad de regularización, ¿debería $N_{eff}$ subir o bajar? Argumentar la respuesta. Ejecutar el mismo experimento con $\lambda = 2.5/N$ y comparar los resultados del punto anterior para verificar la conjetura.
 
+Dado que el hecho de hacer una regresión con una condición extra como es la de weight decay nos hace mantener un compromiso entre disminuir el error dentro de la muestra y el peso de $\lambda w^Tw$ entonces parece lógico pensar que en esta ocasión los $e_i$ serán mayores, con lo que sus varianzas también lo serán haciendo que el $Neff$ sea mayor.
 
+```{r, echo=FALSE}
+ejercicio3.1(2.5)
+```
 
 
 
