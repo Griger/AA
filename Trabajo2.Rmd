@@ -453,8 +453,8 @@ $\mathbb{P} \left( |E_{out} - E_{test}| \geq \varepsilon \right) \leq 2e^{-2\var
 donde ahora N es el número de datos de entrenamiento que tengamos y el $\varepsilon$ será aquel que obtengamos al imponer que el término derecho de la desigualdad sea 0.05, la tolerancia que buscamos.
 
 ```{r, echo=FALSE}
-datos_test <- read.table("~/AA/datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
-datos_train <- read.table("~/AA/datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
+datos_test <- read.table("/media/griger/Datos/Documentos/Facultad/5DGIIYM/AA/P/AA/datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
+datos_train <- read.table("/media/griger/Datos/Documentos/Facultad/5DGIIYM/AA/P/AA/datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
 ```
 
 
@@ -515,10 +515,10 @@ ejercicio1.5 <- function(){
   N_train = length(medias_train) #numero de datos de entrenamiento que tenemos
   N_test = length(medias_test) #numero de dato de test que tenemos 
   
-  cat("Usando E_in enemos que Eout <= ", E_in + sqrt((8/N_train)*log((4*(2*N_train^3+1))/0.05)), "\n" )
+  cat("Usando E_in tenemos que Eout <= ", E_in + sqrt((8/N_train)*log((4*(2*N_train^3+1))/0.05)), "\n" )
   
   eps = sqrt(log(0.05/2)/(-2*N_test))
-  cat("Usando E_test enemos que E_out <=", E_test + eps, "\n")
+  cat("Usando E_test tenemos que |E_test - E_out| <=", eps, "\n")
 }
 ```
 

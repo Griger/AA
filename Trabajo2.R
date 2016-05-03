@@ -316,12 +316,12 @@ ejercicio1.4 <- function(){
 }
 
 #Ejercicio 1.5
-datos_train <- read.table("~/AA/datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
-datos_test <- read.table("~/AA/datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
+#datos_train <- read.table("~/AA/datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
+#datos_test <- read.table("~/AA/datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
 #datos_test <- read.table("/media/griger/Datos/Documentos/Facultad/5DGIIYM/AA/P/AA/datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
 #datos_train <- read.table("/media/griger/Datos/Documentos/Facultad/5DGIIYM/AA/P/AA/datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
-#datos_test <- read.table("datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
-#datos_train <- read.table("datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
+datos_test <- read.table("datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
+datos_train <- read.table("datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
 
 ejercicio1.5 <- function(){
   #seleccionamos los 1 y 5 de ambos conjuntos de datos
@@ -387,7 +387,7 @@ ejercicio1.5 <- function(){
   cat("Usando E_in enemos que Eout <= ", E_in + sqrt((8/N_train)*log((4*(2*N_train^3+1))/0.05)), "\n" )
   
   eps = sqrt(log(0.05/2)/(-2*N_test))
-  cat("Usando E_test enemos que E_out <=", E_test + eps, "\n")
+  cat("Usando E_test tenemos que |E_test - E_out| <=", eps, "\n")
 }
 
 #SOBREAJUSTE
