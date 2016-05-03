@@ -1,6 +1,6 @@
 library('MASS')
 set.seed(41192)
-
+X11()
 #Funciones externas
 simula_unif <- function (N, dim, rango) {
   datos <- matrix(runif(N*dim, rango[1], rango[2]), ncol = dim, nrow = N)
@@ -129,6 +129,7 @@ Metodo general gradiente descendente
 @w0: punto de inicio
 @tol: valor hasta donde queremos llegar con la minimizacion
 @max_iter: maximo de iteraciones permitidas para el algoritmo
+@dibujar: booleano controlando si pintamos la convergencia del método o no
 '
 gradDesc <- function(f, gradf, eta, w0, tol, max_iter = 1000000, dibujar = FALSE) {
   w = w0 #inicializamos pesos
@@ -140,7 +141,7 @@ gradDesc <- function(f, gradf, eta, w0, tol, max_iter = 1000000, dibujar = FALSE
     vt = -gt
     w_ant = w 
     f_ant = f(w)
-    valores_f = c(valores_f, f_ant)
+    valores_f = c(valores_f, f_ant) #vamos almacenando los valores de f que se alcanzan durante el proceso
     w = w + eta*vt #actualizamos el vector de pesos
     n_iters = n_iters+1
     
@@ -175,18 +176,6 @@ gradf <- function(X) {
   c(2*x + 4*pi*sin(2*pi*y)*cos(2*pi*x), 4*y + 4*pi*sin(2*pi*x)*cos(2*pi*y))
 }
 
-#gradDesc(E, gradE, 0.1, c(1,1), 10**(-14)) (llamada para el ejercicio 1.1)
-'
-gradDesc(f, gradf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
-gradDesc(f, gradf, 0.1, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
-'
-
-'
-gradDesc(f, gradf, 0.01, c(0.1,0.1), 10**(-14), max_iter = 50, dibujar = FALSE)
-gradDesc(f, gradf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = FALSE)
-gradDesc(f, gradf, 0.01, c(-0.5,-0.5), 10**(-14), max_iter = 50, dibujar = FALSE)
-gradDesc(f, gradf, 0.01, c(-1,-1), 10**(-14), max_iter = 50, dibujar = FALSE)
-'
 #Ejercicio 1.2
 
 '
@@ -206,18 +195,16 @@ coordDesc <- function(f, gradf, eta, w0, tol, max_iter = 1000000) {
     f_ant = f(w)
     n_iters = n_iters + 1
     
-    w[1] = w[1] - eta*gradf(w)[1]
-    w[2] = w[2] - eta*gradf(w)[2]
+    w[1] = w[1] - eta*gradf(w)[1] #modificamos la primera componente del vector de pesos en base a la primera coordenada del gradiente
+    w[2] = w[2] - eta*gradf(w)[2] #modificamos la segunda componente del vector de pesos en base a la segunda coordenada del gradiente
     
+    #condición de parada
     if (f(w) < tol || n_iters == max_iter || d(w_ant, w) <= tol || abs(f(w) - f_ant) <= tol) break
-    
   }
   
   cat("Iteraciones empleadas: ", n_iters, "\n")
   list(w, f(w))
 }
-
-#coordDesc(E, gradE, 0.1, c(1,1), 10**(-14), 15) (llamada ej. 1.2)
 
 #Ejercicio 1.3
 
@@ -249,8 +236,8 @@ Newton <- function(f, gradf, Hf, eta, w0, tol, max_iter = 1000000, dibujar = FAL
     w_ant = w 
     f_ant = f(w)
     
-    valores_f = c(valores_f, f_ant)
-    w = w-t(eta*ginv(Hf(w))%*%gradf(w))
+    valores_f = c(valores_f, f_ant) #vamos almacenando los valores alcanzados de la f
+    w = w-t(eta*ginv(Hf(w))%*%gradf(w)) #actualizamos el vector de pesos
     n_iters = n_iters + 1
     
     if (f(w) < tol || n_iters == max_iter || d(w_ant, w) <= tol || abs(f(w) - f_ant) <= tol){
@@ -267,8 +254,6 @@ Newton <- function(f, gradf, Hf, eta, w0, tol, max_iter = 1000000, dibujar = FAL
     plot(seq(n_iters), valores_f, type = "l", ylab = "Valor de f", xlab = "Iteraciones")
   
 }
-
-#Newton(f, gradf, Hf, 0.1, c(1,1), 10**(-14), 50) (llamada ejemplo para ej. 1.3)
 
 #Ejercicio 1.4
 '
@@ -289,10 +274,11 @@ RL <- function(datos, et, eta, w0, tol) {
     n_etapas = n_etapas + 1
     
     for (i in sample(N)) {
-      gt = (-et[i]*datos[i,])/(1+exp(et[i]*w%*%datos[i,]))
-      w = w - eta*gt
+      gt = (-et[i]*datos[i,])/(1+exp(et[i]*w%*%datos[i,])) #calculamos el vector de incremento
+      w = w - eta*gt #actualizamos el vector de pesos
     }
     
+    #condición de parada
     if (d(w, w_ant) < tol)
       break
   }
@@ -306,13 +292,16 @@ ejercicio1.4 <- function(){
   n_experimentos = 100
   
   for (i in seq(n_experimentos)) {
+    #generamos los datos de entrenamiento y test
     datos <- simula_unif(100, 2, c(-1,1))
     datos_out <- simula_unif(100,2,c(-1,1))
     
+    #calculamos las etiquetas para dichos datos en base a una recta generada de forma aleatoria
     recta <- simula_recta(c(-1,1))
     ets <- mapply(f0, recta[2], recta[1], datos[,1], datos[,2])
     ets_out <- mapply(f0, recta[2], recta[1], datos_out[,1], datos_out[,2])
     
+    #obtenemos el vector de pesos dado por regresión logística y calculamos el error en los datos de test
     result = RL(datos, ets, 0.01, c(0,0), 0.01)
     w = result[[1]]
     ets_reg_out <- apply(datos_out, 1, h, w = w) #obtenemos las etiquetas que el vector dado por la regresion le da a los datos fuera de la muestra
@@ -327,22 +316,26 @@ ejercicio1.4 <- function(){
 }
 
 #Ejercicio 1.5
-#datos_train <- read.table("datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
+datos_train <- read.table("~/AA/datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
+datos_test <- read.table("~/AA/datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
+#datos_test <- read.table("/media/griger/Datos/Documentos/Facultad/5DGIIYM/AA/P/AA/datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
+#datos_train <- read.table("/media/griger/Datos/Documentos/Facultad/5DGIIYM/AA/P/AA/datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
 #datos_test <- read.table("datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
-datos_test <- read.table("/media/griger/Datos/Documentos/Facultad/5DGIIYM/AA/P/AA/datos/zip.test", quote="\"", comment.char="", stringsAsFactors=FALSE)
-datos_train <- read.table("/media/griger/Datos/Documentos/Facultad/5DGIIYM/AA/P/AA/datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
+#datos_train <- read.table("datos/zip.train", quote="\"", comment.char="", stringsAsFactors=FALSE)
 
 ejercicio1.5 <- function(){
-  
+  #seleccionamos los 1 y 5 de ambos conjuntos de datos
   instancias_train <- datos_train[(datos_train[,1] == 1 | datos_train[,1] == 5),]
   instancias_test <- datos_test[(datos_test[,1] == 1 | datos_test[,1] == 5),]
-
+  
   m_datos_train <- data.matrix(instancias_train)
   m_datos_test <- data.matrix(instancias_test)
-
+  
+  #normalizamos los datos
   m_datos_train[,2:257] <- 0.5*(1-m_datos_train[,2:257])
   m_datos_test[,2:257] <- 0.5*(1-m_datos_test[,2:257])
-
+  
+  #modificamos las etiquetas para que funcionen correctamente con regresión
   et_train <- m_datos_train[,1]
   et_train[et_train == 5] = -1
   et_test <- m_datos_test[,1]
@@ -350,13 +343,15 @@ ejercicio1.5 <- function(){
 
   imagenes_train <- list()
   imagenes_test <- list()
-
+  
+  #creamos matrices a partir de las características de cada dato
   for (i in seq(1, nrow(m_datos_train)))
     imagenes_train <- c(imagenes_train, list(getImagen(m_datos_train[i,2:257])))
 
   for (i in seq(1, nrow(m_datos_test)))
     imagenes_test <- c(imagenes_test, list(getImagen(m_datos_test[i,2:257])))
-
+  
+  #calculamos medias y simetrías
   medias_train <- unlist(lapply(imagenes_train, mean))
   simetrias_train <- unlist(lapply(imagenes_train, getSimetria))
 
@@ -367,7 +362,7 @@ ejercicio1.5 <- function(){
   datos_test <- cbind(medias_test, simetrias_test, 1)
 
   w_ini <- t(regressLin(datos, et_train)) #calculamos el vector de pesos dado por la regresión
-  w <- ajusta_PLA_MOD(datos, et_train, 100, w_ini)[[1]] #medimos el numero medio de iteraciones
+  w <- ajusta_PLA_MOD(datos, et_train, 100, w_ini)[[1]] #empleamos el PLA_Pocket partiendo del vector de pesos que hemos obtenido
   
   Y_wlin_train = apply(datos, 1, h, w = w) #etiquetas dadas por el vector de pesos
   Y_wlin_test = apply(datos_test, 1, h, w = w) #etiquetas dadas por el vector de pesos
@@ -388,7 +383,8 @@ ejercicio1.5 <- function(){
   N_train = length(medias_train) #numero de datos de entrenamiento que tenemos
   N_test = length(medias_test) #numero de dato de test que tenemos 
   
-  cat("Usando E_in enemos que Eout <= ", E_in + sqrt((8/N_train)*log((4*((2*N_train)^3+1))/0.05)), "\n" )
+  #Calculamos las cotas de Eout empleando E_in y empleando E_test.
+  cat("Usando E_in enemos que Eout <= ", E_in + sqrt((8/N_train)*log((4*(2*N_train^3+1))/0.05)), "\n" )
   
   eps = sqrt(log(0.05/2)/(-2*N_test))
   cat("Usando E_test enemos que E_out <=", E_test + eps, "\n")
@@ -397,6 +393,10 @@ ejercicio1.5 <- function(){
 #SOBREAJUSTE
 
 #función recursiva para calcular el valor de un Polinomio de Legendre
+'
+@x: el valor donde queremos evaluar el polinomio
+@grado: el grado del polinomio de Legendre a evaluar
+'
 LegendreRecursivo <- function(x, grado) {
   if (grado == 0)
     return(c(1,1))
@@ -414,6 +414,7 @@ Legendre <- function(x, grado) {
   LegendreRecursivo(x, grado)[1]
 }
 
+#La función objetivo para esta parte de la práctica
 fL <- function(x, coef) {
   Qf = length(coef)
   sum(coef*unlist(lapply(seq(0,Qf-1), Legendre, x = x)))
@@ -434,9 +435,11 @@ ejercicio2.1 <- function() {
   ruido = rnorm(N)
   Y = unlist(lapply(X, fL, coef = coef)) + sigma*ruido
   
+  #Obtenemos los datos a ajustar obteniendo las distintas potencias de los valores anteriormente obtenidos
   Mgrado2 = matrix(X**rep(seq(0,2), each = N), nrow = N)
   Mgrado10 = matrix(X**rep(seq(0,10), each = N), nrow = N)
   
+  #Obtenemos los vector de pesos con regresión lineal
   w2 = regressLin(Mgrado2, Y)
   w10 = regressLin(Mgrado10, Y)
   
@@ -491,7 +494,12 @@ ejercicio2.2 <- function() {
 }
 
 #REGULARIZACIÓN Y SELECCIÓN DE MODELOS
-
+'
+Función que calcula una vector de pesos usando regresión lineal con weight decay
+@Z: matriz de datos
+@label: etiquetas para los datos
+@lambda: factor de regularización
+'
 regressLinWeightDecay <- function(Z, label, lambda) {
   ncol = ncol(Z)
   ginv(t(Z)%*%Z + lambda*diag(ncol))%*%t(Z)%*%label
@@ -503,7 +511,7 @@ ejercicio3.1 <- function(term_norm = 0.05) {
   
   Ns = seq(15,115,10)+d
   results = lapply(Ns+1, function(i) rep(0,i))
-  wf = rnorm(d+1)
+  wf = rnorm(d+1) #obtenemos los coeficientes del polinomio a ajustar
   
   varE1Ns = rep(0, length(Ns))
   varEcvNs = rep(0,length(Ns))
@@ -514,6 +522,7 @@ ejercicio3.1 <- function(term_norm = 0.05) {
     Ecvs = rep(0, Nexp)
     
     for (i in seq(1,Nexp)) {
+      #generamos una muestra de datos junto con sus etiquetas
       X = simula_gaus(N, d, 1)
       X = cbind(X, 1)
       Y = apply(X, 1, function(x) wf%*%x)
@@ -521,15 +530,18 @@ ejercicio3.1 <- function(term_norm = 0.05) {
       
       idx = seq(1,N)
       
+      #calculamos los ei quitando un dato para acada uno y aplicando regresión lineal con weight decay
       Eis <- sapply(idx, function(i) {
         wlin = regressLinWeightDecay(X[-i,], Y_ruido[-i], term_norm/N)
         ei = (t(wlin)%*%X[i,] - Y_ruido[i])^2
       })
       
+      #almacenamos los e1, los e2 y los Ecv de cada experimento para luego calcular su media y su varianza
       e1s[i] = Eis[1]
       e2s[i] = Eis[2]
       Ecvs[i] = mean(Eis)
       
+      #almacenamos los resultados en promedio de los experimentos por si queremos mostrarlos
       result = c(Eis, mean(Eis))
       results[[N%/%10]] <- results[[N%/%10]] + result/Nexp
     }
@@ -543,9 +555,83 @@ ejercicio3.1 <- function(term_norm = 0.05) {
   }
   
   cat("Los Neff para los distintos N con los que trabajamos:\n ", varE1Ns/varEcvNs, "\n")
-  cat("La media de los anteriores valores es: ", mean(varE1Ns/varEcvNs))
+  cat("La media de los anteriores valores es: ", mean(varE1Ns/varEcvNs), "\n")
   
   #dibujar número efectivo
   par(mfrow = c(1,1))
   plot(Ns, 100*Ns/(varE1Ns/varEcvNs))
 }
+
+
+print("MODELOS LINEALES")
+print("Ejercicio 1. Gradiente Descendente")
+print("Apartado a")
+gradDesc(E, gradE, 0.1, c(1,1), 10**(-14))
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+print("Apartado b")
+gradDesc(f, gradf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+gradDesc(f, gradf, 0.1, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+gradDesc(f, gradf, 0.01, c(0.1,0.1), 10**(-14), max_iter = 50, dibujar = FALSE)
+gradDesc(f, gradf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = FALSE)
+gradDesc(f, gradf, 0.01, c(-0.5,-0.5), 10**(-14), max_iter = 50, dibujar = FALSE)
+gradDesc(f, gradf, 0.01, c(-1,-1), 10**(-14), max_iter = 50, dibujar = FALSE)
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+
+print("Ejercicio 2. Coordenada descendente")
+coordDesc(E, gradE, 0.1, c(1,1), 10**(-14), 15)
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+
+print("Ejercicio3. Método de Newton")
+print("Gráficas y datos con Gradiente Descendente")
+par(mfrow=c(2,2))
+gradDesc(f, gradf, 0.01, c(0.1,0.1), 10**(-14), max_iter = 50, dibujar = TRUE)
+gradDesc(f, gradf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
+gradDesc(f, gradf, 0.01, c(-0.5,-0.5), 10**(-14), max_iter = 50, dibujar = TRUE)
+gradDesc(f, gradf, 0.01, c(-1,-1), 10**(-14), max_iter = 50, dibujar = TRUE)
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+print("Gráficas y datos con el método de Newton")
+Newton(f, gradf, Hf, 0.01, c(0.1,0.1), 10**(-14), max_iter = 50, dibujar = TRUE)
+Newton(f, gradf, Hf, 0.01, c(1,1), 10**(-14), max_iter = 50, dibujar = TRUE)
+Newton(f, gradf, Hf, 0.01, c(-0.5,-0.5), 10**(-14), max_iter = 50, dibujar = TRUE)
+Newton(f, gradf, Hf, 0.01, c(-1,-1), 10**(-14), max_iter = 50, dibujar = TRUE)
+
+print("Ejercicio 4. Regresión Logística")
+ejercicio1.4()
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+
+print("Ejercicio 5. Clasificación de dígitos")
+ejercicio1.5()
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+
+print("SOBREAJUSTE")
+print("Ejercicio 1. Sobreajuste")
+ejercicio2.1()
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+
+print("Ejercicio 2.")
+ejercicio2.2()
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+
+print("REGULARIZACIÓN Y SELECCIÓN DE MODELOS")
+print("Ejercicio 1. Ejecución con lamda 0.05/N")
+ejercicio3.1()
+print ("Pulsar ENTER para continuar.")
+invisible(readLines("stdin", n=1))
+print("Ejercicio 1. Ejecución con lamda 2.5/N")
+ejercicio3.1(2.5)
+print ("Pulsar ENTER para salir.")
+invisible(readLines("stdin", n=1))
+
+
