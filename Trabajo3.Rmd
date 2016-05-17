@@ -58,15 +58,36 @@ boxplot(mpg ~ name)
 
 ## b) Seleccionar las variables predictoras que considere más relevantes.
 
-
-
-## c) Particionar el conjunto de datos en un conjunto de entrenamiento (80%) y otro de test (20%). Justificar el procedimiento usado.
+```{r}
+datos = Auto[,c("displacement", "horsepower", "weight")]
+```
 
 ## d) Crear una variable binaria, mpg01, que será igual 1 si la variable mpg contiene un valor por encima de la mediana, y -1 si mpg contiene un valor por debajo de la mediana. La mediana se puede calcular usando la función median(). (Nota: puede resultar útil usar la función data.frames() para unir en un mismo conjunto de datos la nueva variable mpg01 y las otras variables Auto).
 
 ```{r}
 mpg_median = median(mpg)
 mpg1 = sapply(mpg, function(x) if (x < mpg_median) return(-1) else return(1))
+```
+
+## c) Particionar el conjunto de datos en un conjunto de entrenamiento (80%) y otro de test (20%). Justificar el procedimiento usado.
+
+Hemos realizado en primer lugar el apartado d ya que lo que buscamos es realizar un particionado de la muestra de modo que las etiquetas tengan una distribucion lo más uniforme posible en ambas particiones, así nuestro ajuste será mejor.
+
+```{r}
+n_pos = sum(mpg1 == 1)
+n_neg = sum(mpg1 == -1)
+
+n_pos_train = ceiling(0.8 * n_pos)
+n_neg_train = ceiling(0.8 * n_neg)
+
+idx_pos = which(mpg1 == 1)
+idx_neg = which(mpg1 == -1)
+
+idx_pos_train = sample(idx_pos, n_pos_train)
+idx_neg_train = sample(idx_neg, n_neg_train)
+
+datos_train = datos[c(idx_neg_train, idx_pos_train),]
+datos_test = datos[-c(idx_neg_train, idx_pos_train),]
 ```
 
 * Ajustar un modelo de regresión logística a los datos de entrenamiento y predecir mpg01 usando las variables seleccionadas en b). ¿Cuál es el error de test del modelo? Justificar la respuesta.
