@@ -7,6 +7,7 @@ library(MASS)
 library(ISLR)
 library(class)
 library(e1071)
+library(ROCR)
 set.seed(41192)
 attach(Auto) #para no tener que poner el prefijo cada vez que queramo acceder a una atributo del dataframe
 ```
@@ -39,13 +40,14 @@ tune.knn va probando distintos parámetros y te devuelve el que mejor funciona.
 ## a) Usar las funciones de R pairs() y boxplot() para investigar la dependencia entre mpg y las otras características. ¿Cuáles de las otras características parece más útil para predecir mpg? Justificar la respuesta.
 
 ```{r}
-pairs(Auto)
-pairs(mpg ~ displacement + horsepower + weight)
+#pairs(Auto)
+#pairs(mpg ~ displacement + horsepower + weight)
 ```
 
 Como podemos ver las "gráficas de dependencias" de mpg con respecto a *displacement*, *horsepower* y *weight* son las gráficas que presentan un patrón más parecido entre ellas indicando que mpg tiene una relación fuerte con estas variables ya que se ajusta a ellas de un modo similar. Por ejemplo si vemos la gráfica con respecto a *acceleration* lo que tenemos es una nube de puntos mucho más dispersa. En cambio estas gráficas si que tienen un aspecto de ser ajustables linealmente.
 
 ```{r}
+"
 boxplot(mpg ~ cylinders)
 boxplot(mpg ~ displacement)
 boxplot(mpg ~ horsepower)
@@ -53,7 +55,7 @@ boxplot(mpg ~ weight)
 boxplot(mpg ~ acceleration)
 boxplot(mpg ~ year)
 boxplot(mpg ~ origin)
-boxplot(mpg ~ name)
+boxplot(mpg ~ name)"
 ```
 
 
@@ -79,8 +81,8 @@ datos.test = datos[-idx_train,]
 
 ```{r}
 mediana = median(datos.train$mpg)
-mpg1.train = sapply(datos.train$mpg, function(x) if (x < mediana) return(-1) else return(1))
-mpg1.test = sapply(datos.test$mpg, function(x) if (x < mediana) return(-1) else return(1))
+mpg1.train = sapply(datos.train$mpg, function(x) if (x < mediana) return(0) else return(1))
+mpg1.test = sapply(datos.test$mpg, function(x) if (x < mediana) return(0) else return(1))
 ```
 
 * Ajustar un modelo de regresión logística a los datos de entrenamiento y predecir mpg01 usando las variables seleccionadas en b). ¿Cuál es el error de test del modelo? Justificar la respuesta.
@@ -89,9 +91,16 @@ mpg1.test = sapply(datos.test$mpg, function(x) if (x < mediana) return(-1) else 
 train = data.frame(mpg01 = mpg1.train, datos.train)
 test = data.frame(mpg01 = mpg1.test, datos.test)
 
-RL = glm(mpg01 ~ displacement+horsepower+weight, data = train)
+RL = glm(mpg01 ~ displacement+horsepower+weight, data = train, family = binomial)
 
-prediccion = predict(RL, newdata = test, se.fit = TRUE)
+prediccion = predict(RL, newdata = test, type = "response")
+RL.pred = rep(0, length(test$mpg01))
+RL.pred[prediccion > .5] = 1
+
+cat("El número de errores en test con RL es: ", sum(test$mpg01 != RL.pred))
+
+perf = performance(prediccion, "tpr", "fpr")
+plot(perf)
 ```
 
 
@@ -104,16 +113,20 @@ medias = attr(train.norm, "scaled:center")
 escalados = attr(train.norm, "scaled:scale")
 test.norm = scale(test[,c("weight","displacement","horsepower")], medias, escalados)
 
-KNN = knn(train.norm, test.norm, train$mpg01, k = 3)
+full.data = rbind(train.norm, test.norm)
+full.labels = as.factor(c(mpg1.train,mpg1.test))
 
-tune.knn(rbind(train.norm, test.norm), as.factor(c(mpg1.train,mpg1.test)), k=1:100, tune.control(sampling = "cross"), cross = 10)
+set.seed(75570417)
+mknns = tune.knn(full.data, full.labels, k=1:20, tunecontrol = tune.control(sampling = "cross"), cross = 10)
+
+mejor_k = mknns$best.model$k
+
+KNN = knn(train.norm, test.norm, train$mpg01, k = mejor_k)
+
+cat("El numero de errores que obtenemos en el test es: ", sum(test$mpg01 != KNN), "\n")
 ```
 
-Fijar una semilla para que siempre salga lo mismo en el caso de tener que hacer desempate.
 
-Para que el KNN funcione correctamente hemos de elimitar las columnas que no sean números y es conveniente normalizar los datos para que a la hora de calcular distancias pues normalizar los datos. Para ello tenemos la siguiente función: scale(Auto[columnas]).
-
-Con tune.knn nos permite probar distintos valores para el k y ver cuál da mejores resultados. Para ello hay que usar el paquete **el071**.
 
 Para obtener la curva rho lo que hacemos es:
 pred = prediction(modelo, test.label)
