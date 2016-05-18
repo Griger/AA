@@ -5,6 +5,8 @@ output: pdf_document
 ```{r, echo=FALSE}
 library(MASS)
 library(ISLR)
+library(class)
+library(e1071)
 set.seed(41192)
 attach(Auto) #para no tener que poner el prefijo cada vez que queramo acceder a una atributo del dataframe
 ```
@@ -59,40 +61,53 @@ boxplot(mpg ~ name)
 ## b) Seleccionar las variables predictoras que considere más relevantes.
 
 ```{r}
-datos = Auto[,c("displacement", "horsepower", "weight")]
-```
-
-## d) Crear una variable binaria, mpg01, que será igual 1 si la variable mpg contiene un valor por encima de la mediana, y -1 si mpg contiene un valor por debajo de la mediana. La mediana se puede calcular usando la función median(). (Nota: puede resultar útil usar la función data.frames() para unir en un mismo conjunto de datos la nueva variable mpg01 y las otras variables Auto).
-
-```{r}
-mpg_median = median(mpg)
-mpg1 = sapply(mpg, function(x) if (x < mpg_median) return(-1) else return(1))
+datos = Auto[,c("mpg","displacement", "horsepower", "weight")]
 ```
 
 ## c) Particionar el conjunto de datos en un conjunto de entrenamiento (80%) y otro de test (20%). Justificar el procedimiento usado.
 
-Hemos realizado en primer lugar el apartado d ya que lo que buscamos es realizar un particionado de la muestra de modo que las etiquetas tengan una distribucion lo más uniforme posible en ambas particiones, así nuestro ajuste será mejor.
+A priori había pensado en calcular en primer lugar la variable mpg1 del siguiente apartado para así poder realizar un particionamiento más homogéneo de las etiquetas positivas y negativas en los conjuntos de entrenamiento y test. El problema es que para hacer tal cosa tendría que calcular la mediana de todos los datos de Auto y lo que queremos es calcular la mediana y por tanto el valor de mpg1 sólo en base a los datos de entrenamiento puesto que se dijo en teoría que para no contaminar el aprendizaje no podíamos usar los datos de test para calcular una mediana, sería como mirar los datos antes de aprender. Entonces he realizado simplemente un submuestreo de los datos aleatorio para dividirlos en entrenamiento y test.
 
 ```{r}
-n_pos = sum(mpg1 == 1)
-n_neg = sum(mpg1 == -1)
+n = nrow(datos)
+idx_train = sample(seq(n), ceiling(0.8*n))
 
-n_pos_train = ceiling(0.8 * n_pos)
-n_neg_train = ceiling(0.8 * n_neg)
+datos.train = datos[idx_train,]
+datos.test = datos[-idx_train,]
+```
+## d) Crear una variable binaria, mpg01, que será igual 1 si la variable mpg contiene un valor por encima de la mediana, y -1 si mpg contiene un valor por debajo de la mediana. La mediana se puede calcular usando la función median(). (Nota: puede resultar útil usar la función data.frames() para unir en un mismo conjunto de datos la nueva variable mpg01 y las otras variables Auto).
 
-idx_pos = which(mpg1 == 1)
-idx_neg = which(mpg1 == -1)
-
-idx_pos_train = sample(idx_pos, n_pos_train)
-idx_neg_train = sample(idx_neg, n_neg_train)
-
-datos_train = datos[c(idx_neg_train, idx_pos_train),]
-datos_test = datos[-c(idx_neg_train, idx_pos_train),]
+```{r}
+mediana = median(datos.train$mpg)
+mpg1.train = sapply(datos.train$mpg, function(x) if (x < mediana) return(-1) else return(1))
+mpg1.test = sapply(datos.test$mpg, function(x) if (x < mediana) return(-1) else return(1))
 ```
 
 * Ajustar un modelo de regresión logística a los datos de entrenamiento y predecir mpg01 usando las variables seleccionadas en b). ¿Cuál es el error de test del modelo? Justificar la respuesta.
 
-* Ajustar un modelo K-NN a los datos de entrenamiento y predecir mpg01 usando solam
+```{r}
+train = data.frame(mpg01 = mpg1.train, datos.train)
+test = data.frame(mpg01 = mpg1.test, datos.test)
+
+RL = glm(mpg01 ~ displacement+horsepower+weight, data = train)
+
+prediccion = predict(RL, newdata = test, se.fit = TRUE)
+```
+
+
+* Ajustar un modelo K-NN a los datos de entrenamiento y predecir mpg01 usando solamente las variables seleccionadas en b). ¿Cuál es el error de test del modelo? ¿Cuál es el valor de K que mejor ajusta los datos?
+
+```{r}
+#normalizamos los datos
+train.norm = scale(train[,c("weight","displacement","horsepower")])
+medias = attr(train.norm, "scaled:center")
+escalados = attr(train.norm, "scaled:scale")
+test.norm = scale(test[,c("weight","displacement","horsepower")], medias, escalados)
+
+KNN = knn(train.norm, test.norm, train$mpg01, k = 3)
+
+tune.knn(rbind(train.norm, test.norm), as.factor(c(mpg1.train,mpg1.test)), k=1:100, tune.control(sampling = "cross"), cross = 10)
+```
 
 Fijar una semilla para que siempre salga lo mismo en el caso de tener que hacer desempate.
 
