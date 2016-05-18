@@ -99,8 +99,9 @@ RL.pred[prediccion > .5] = 1
 
 cat("El número de errores en test con RL es: ", sum(test$mpg01 != RL.pred))
 
-perf = performance(prediccion, "tpr", "fpr")
-plot(perf)
+pRL = prediction(prediccion, test$mpg01)
+perf = performance(pRL, "tpr", "fpr")
+plot(perf, main = "ROC Regresion Logistica")
 ```
 
 
@@ -121,7 +122,13 @@ mknns = tune.knn(full.data, full.labels, k=1:20, tunecontrol = tune.control(samp
 
 mejor_k = mknns$best.model$k
 
-KNN = knn(train.norm, test.norm, train$mpg01, k = mejor_k)
+KNN = knn(train.norm, test.norm, train$mpg01, k = mejor_k, prob = TRUE)
+
+prob = attr(KNN, "prob")
+prob = ifelse(KNN == "0", 1-prob, prob)
+pKNN = prediction(prob, test$mpg01)
+perf = performance(pKNN, "tpr", "fpr")
+plot(perf, main = "ROC KNN")
 
 cat("El numero de errores que obtenemos en el test es: ", sum(test$mpg01 != KNN), "\n")
 ```
