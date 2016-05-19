@@ -8,16 +8,11 @@ library(ISLR)
 library(class)
 library(e1071)
 library(ROCR)
+library(boot)
+library(dismo)
 set.seed(41192)
 attach(Auto) #para no tener que poner el prefijo cada vez que queramo acceder a una atributo del dataframe
 ```
-
-lm regresión logística por defecto aprende sobre todos, nos devuelve los pesos para cada una de las variables en el orden en el que están disponibles en el dataset, el w0 es el que llaman el Intercept. 
-
-Aquellos que tienen un umbral alto podríamos eliminarlos porque no los creemos, eliminar las columnas que no queremos. Pero aquí lo que podemos hacer de otra forma más cómoda introduciendo una fórmula.
-
-modelo1 <- lm(ym, data=datos)
-modelo2 <- lm(ym ~ X1+X2+X3, data=datos) así construimos una solución que sólo tiene en cuenta las variables 1,2 y 3.
 
 Una de las bases de datos con las que vamos a trabajar tiene "más pinta de cuadrática" entonces nos podemos plantear hacerlo del siguiente modo:
 
@@ -40,14 +35,13 @@ tune.knn va probando distintos parámetros y te devuelve el que mejor funciona.
 ## a) Usar las funciones de R pairs() y boxplot() para investigar la dependencia entre mpg y las otras características. ¿Cuáles de las otras características parece más útil para predecir mpg? Justificar la respuesta.
 
 ```{r}
-#pairs(Auto)
-#pairs(mpg ~ displacement + horsepower + weight)
+pairs(Auto)
+pairs(mpg ~ displacement + horsepower + weight)
 ```
 
 Como podemos ver las "gráficas de dependencias" de mpg con respecto a *displacement*, *horsepower* y *weight* son las gráficas que presentan un patrón más parecido entre ellas indicando que mpg tiene una relación fuerte con estas variables ya que se ajusta a ellas de un modo similar. Por ejemplo si vemos la gráfica con respecto a *acceleration* lo que tenemos es una nube de puntos mucho más dispersa. En cambio estas gráficas si que tienen un aspecto de ser ajustables linealmente.
 
 ```{r}
-"
 boxplot(mpg ~ cylinders)
 boxplot(mpg ~ displacement)
 boxplot(mpg ~ horsepower)
@@ -55,12 +49,14 @@ boxplot(mpg ~ weight)
 boxplot(mpg ~ acceleration)
 boxplot(mpg ~ year)
 boxplot(mpg ~ origin)
-boxplot(mpg ~ name)"
+boxplot(mpg ~ name)
 ```
 
 
 
 ## b) Seleccionar las variables predictoras que considere más relevantes.
+
+Vamos a seleccionar aquellas que hemos visto en el apartado anterior que parecen seguir un patrón similar:
 
 ```{r}
 datos = Auto[,c("mpg","displacement", "horsepower", "weight")]
@@ -68,7 +64,7 @@ datos = Auto[,c("mpg","displacement", "horsepower", "weight")]
 
 ## c) Particionar el conjunto de datos en un conjunto de entrenamiento (80%) y otro de test (20%). Justificar el procedimiento usado.
 
-A priori había pensado en calcular en primer lugar la variable mpg1 del siguiente apartado para así poder realizar un particionamiento más homogéneo de las etiquetas positivas y negativas en los conjuntos de entrenamiento y test. El problema es que para hacer tal cosa tendría que calcular la mediana de todos los datos de Auto y lo que queremos es calcular la mediana y por tanto el valor de mpg1 sólo en base a los datos de entrenamiento puesto que se dijo en teoría que para no contaminar el aprendizaje no podíamos usar los datos de test para calcular una mediana, sería como mirar los datos antes de aprender. Entonces he realizado simplemente un submuestreo de los datos aleatorio para dividirlos en entrenamiento y test.
+A priori había pensado en calcular en primer lugar la variable mpg1 del siguiente apartado para así poder realizar un particionamiento más homogéneo de las etiquetas positivas y negativas en los conjuntos de entrenamiento y test. El problema es que para hacer tal cosa tendría que calcular la mediana de todos los datos de Auto y lo que queremos es calcular la mediana, y por tanto el valor de mpg1 sólo en base a los datos de entrenamiento puesto que se dijo en teoría que para no contaminar el aprendizaje no podíamos usar los datos de test para calcular una mediana, sería como mirar los datos antes de aprender. Entonces he realizado simplemente un submuestreo de los datos aleatorio para dividirlos en entrenamiento y test.
 
 ```{r}
 n = nrow(datos)
@@ -88,64 +84,89 @@ mpg1.test = sapply(datos.test$mpg, function(x) if (x < mediana) return(0) else r
 * Ajustar un modelo de regresión logística a los datos de entrenamiento y predecir mpg01 usando las variables seleccionadas en b). ¿Cuál es el error de test del modelo? Justificar la respuesta.
 
 ```{r}
-train = data.frame(mpg01 = mpg1.train, datos.train)
-test = data.frame(mpg01 = mpg1.test, datos.test)
+trainRL = data.frame(mpg01 = mpg1.train, datos.train)
+testRL = data.frame(mpg01 = mpg1.test, datos.test)
 
-RL = glm(mpg01 ~ displacement+horsepower+weight, data = train, family = binomial)
+RL = glm(mpg01 ~ displacement+horsepower+weight, data = trainRL, family = binomial)
 
-prediccion = predict(RL, newdata = test, type = "response")
-RL.pred = rep(0, length(test$mpg01))
+prediccion = predict(RL, newdata = testRL, type = "response")
+RL.pred = rep(0, length(testRL$mpg01))
 RL.pred[prediccion > .5] = 1
 
-cat("El número de errores en test con RL es: ", sum(test$mpg01 != RL.pred))
-
-pRL = prediction(prediccion, test$mpg01)
-perf = performance(pRL, "tpr", "fpr")
-plot(perf, main = "ROC Regresion Logistica")
+cat("El % de errores en test con RL es: ", sum(testRL$mpg01 != RL.pred)/length(testRL$mpg01)*100)
 ```
 
 
 * Ajustar un modelo K-NN a los datos de entrenamiento y predecir mpg01 usando solamente las variables seleccionadas en b). ¿Cuál es el error de test del modelo? ¿Cuál es el valor de K que mejor ajusta los datos?
 
 ```{r}
-#normalizamos los datos
-train.norm = scale(train[,c("weight","displacement","horsepower")])
-medias = attr(train.norm, "scaled:center")
-escalados = attr(train.norm, "scaled:scale")
-test.norm = scale(test[,c("weight","displacement","horsepower")], medias, escalados)
+getErrorKNN <- function(datos.train, datos.test, et.train, et.test ){
+  #normalizamos los datos
+  train.norm = scale(datos.train[,c("weight","displacement","horsepower")])
+  medias = attr(train.norm, "scaled:center")
+  escalados = attr(train.norm, "scaled:scale")
+  test.norm = scale(datos.test[,c("weight","displacement","horsepower")], medias, escalados)
+  
+  datos.full = rbind(train.norm, test.norm)
+  et.full = as.factor(c(et.train,et.test))
+  
+  set.seed(75570417)
+  mknns = tune.knn(full.data, full.labels, k=1:20, tunecontrol = tune.control(sampling = "cross"), cross = 10)
+  
+  mejor_k = mknns$best.model$k
+  
+  KNN = knn(train.norm, test.norm, et.train, k = mejor_k, prob = TRUE)
+  cat("Se ha elegido como mejor k el: ", mejor_k, "\n")
+  err.test = sum(et.test != KNN)/length(et.test)*100
+  cat("El % de errores que obtenemos en el test es: ", err.test, "\n")
+  
+  err.test
+}
 
-full.data = rbind(train.norm, test.norm)
-full.labels = as.factor(c(mpg1.train,mpg1.test))
+getErrorKNN(trainRL, testRL, mpg1.train, mpg1.test)
+```
 
-set.seed(75570417)
-mknns = tune.knn(full.data, full.labels, k=1:20, tunecontrol = tune.control(sampling = "cross"), cross = 10)
+* Pintar las curvas ROC (instalar paquete ROCR en R) y comparar y valorar los resultados obtenidos por ambos modelos.
 
-mejor_k = mknns$best.model$k
-
-KNN = knn(train.norm, test.norm, train$mpg01, k = mejor_k, prob = TRUE)
+```{r}
+pRL = prediction(prediccion, testRL$mpg01)
+perf = performance(pRL, "tpr", "fpr")
+plot(perf, main = "Curvas ROC")
 
 prob = attr(KNN, "prob")
 prob = ifelse(KNN == "0", 1-prob, prob)
-pKNN = prediction(prob, test$mpg01)
+pKNN = prediction(prob, testRL$mpg01)
 perf = performance(pKNN, "tpr", "fpr")
-plot(perf, main = "ROC KNN")
 
-cat("El numero de errores que obtenemos en el test es: ", sum(test$mpg01 != KNN), "\n")
+
+plot(perf,  add = TRUE, col = "red")
+legend(0.8,0.2,c("RL", "KNN"), lty=c(1,1),lwd=c(2.5,2.5),col=c("black","red"))
 ```
+Al inicio RL parece mas estable puesto que pasa más tiempo teniendo un tasa nula de falso positivos, ahora bien cuando esta tasa aumenta vemos como antes la misma pérdida o el mismo error de clasificación es el KNN el que acierta un mayor número de veces, es decir, que aunque cometemos el mismo error al menos clasificamos bien más muestras.
+
+Cuando la tasa de falsos positivos aumenta es nuevamente la RL la que mejor se comporta puesto que tiene una tasa de verdaderos positivos más elevada aunqeue no difiere en gran medidad de la del KNN. Con lo cual en mi opinión es el KNN el que tiene un mejor comportamiento puesto que es el que da mejores resultados ante un error igual.
+
+## e) Estimar el error de test de ambos modelos pero usando Validación Cruzada de 5-particiones. Comparar con los resulados obtenidos en el punto anterior.
+
+```{r}
+fullRL = rbind(trainRL, testRL)
+RL = glm(mpg01 ~ displacement+horsepower+weight, data = fullRL, family = binomial)
+pp = cv.glm(fullRL, RL, K = 5)
+
+cat("El error de test obtenido haciendo VC en RL ha sido: ", pp$delta[1]*100, "\n")
 
 
+folds = kfold(full.data, k = 5)
+err = 0
 
-Para obtener la curva rho lo que hacemos es:
-pred = prediction(modelo, test.label)
-perf = performance(pred, "tpr", "fpr")
-plot(perf)
+for (i in seq(5)) {
+  getErrorKNN(full.data[folds != i,], full.data[folds == i,], et.train, et.test)
+  KNN = knn(full.data[folds != i,], full.data[folds == i,], full.labels[folds != i], k = mejor_k, prob = TRUE)
+  err = err + sum(full.labels[folds == i] != KNN)/length(full.labels[folds == i])*100
+}
 
-El problema que tiene el KNN es que no devuelve un modelo, lo que hemos de hacer es en los argumentos del KNN pasarle prob = TRUE lo cual nos devuelve una probabilidad, pero que realmente es una serie de etiquetas:
-0 1 0 1 1 0 1 0
-vj = knn(,.........,prob=TRUE)
-attributes nos sirve para obtener estos vectores de etiquetas y probabilidades
-
-a lo que sea cero le ponemos 1-probabilidad de que sea cero eso esta en el $prob para poder emplear esta probabilidad para usar performance y luego poder pintar la curva.
+cat("El error de test obtenido haciendo VC en KNN ha sido: ", err/5)
+```
 
 
 para el vaging mtray = ncol-1 de los datos que tenemos (es un random forest)
