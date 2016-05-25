@@ -10,6 +10,7 @@ library(e1071)
 library(ROCR)
 library(boot)
 library(dismo)
+library(glmnet)
 set.seed(41192)
 attach(Auto) #para no tener que poner el prefijo cada vez que queramo acceder a una atributo del dataframe
 ```
@@ -168,5 +169,19 @@ for (i in seq(5)) {
 cat("El error de test obtenido haciendo VC en KNN ha sido: ", err/5)
 ```
 
+#Ejercicio 2
+
+```{r}
+attach(Boston)
+
+set.seed(41192)
+cv.out = cv.glmnet(as.matrix(Boston[,-1]), Boston[,1],alpha=1)
+bestlam = cv.out$lambda.min
+out = glmnet(as.matrix(Boston[,-1]),Boston[,1], alpha = 1)
+lasso.coef = predict(out, type="coefficients",s=bestlam)
+
+umbral = 0.1
+var_seleccionadas = which(abs(lasso.coef) > umbral)[-1]
+```
 
 para el vaging mtray = ncol-1 de los datos que tenemos (es un random forest)
