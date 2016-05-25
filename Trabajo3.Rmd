@@ -112,7 +112,7 @@ getErrorKNN <- function(datos.train, datos.test, et.train, et.test ){
   et.full = as.factor(c(et.train,et.test))
   
   set.seed(75570417)
-  mknns = tune.knn(full.data, full.labels, k=1:20, tunecontrol = tune.control(sampling = "cross"), cross = 10)
+  mknns = tune.knn(datos.full, et.full, k=1:20, tunecontrol = tune.control(sampling = "cross"), cross = 10)
   
   mejor_k = mknns$best.model$k
   
@@ -121,10 +121,10 @@ getErrorKNN <- function(datos.train, datos.test, et.train, et.test ){
   err.test = sum(et.test != KNN)/length(et.test)*100
   cat("El % de errores que obtenemos en el test es: ", err.test, "\n")
   
-  err.test
+  KNN
 }
 
-getErrorKNN(trainRL, testRL, mpg1.train, mpg1.test)
+KNN =  getErrorKNN(trainRL, testRL, mpg1.train, mpg1.test)
 ```
 
 * Pintar las curvas ROC (instalar paquete ROCR en R) y comparar y valorar los resultados obtenidos por ambos modelos.
@@ -156,7 +156,7 @@ pp = cv.glm(fullRL, RL, K = 5)
 
 cat("El error de test obtenido haciendo VC en RL ha sido: ", pp$delta[1]*100, "\n")
 
-
+'
 folds = kfold(full.data, k = 5)
 err = 0
 
@@ -167,16 +167,25 @@ for (i in seq(5)) {
 }
 
 cat("El error de test obtenido haciendo VC en KNN ha sido: ", err/5)
+'
 ```
 
 #Ejercicio 2
+
+Lo que vamos a hacer en primer lugar es emplear validación cruzada para obtener el mejor $s$ para nuestros datos, este s lo que hace es regular el impacto de la restricción de "contracción", la cual lleva a coeficientes más pequeños cuanto mayor sea su impacto, es decir, el valor de s.
+
+Con el objetivo de tener un buen s lo que vamos a hacer es obtenerlo mediante validación cruzada en la cual emplearemos todos los datos, ya vimos en teoria que con validación cruzada si empleamos todos los datos podemos tener un buen estimador sin riesgo de que usar los datos de test suponga un problema de sobreajuste.
 
 ```{r}
 attach(Boston)
 
 set.seed(41192)
 cv.out = cv.glmnet(as.matrix(Boston[,-1]), Boston[,1],alpha=1)
-bestlam = cv.out$lambda.min
+bestlam = cv.out$lambda.min #el mejor ese obtenido
+```
+
+Ahora aplicamos un modelo lasso a nuestros datos
+```{r}
 out = glmnet(as.matrix(Boston[,-1]),Boston[,1], alpha = 1)
 lasso.coef = predict(out, type="coefficients",s=bestlam)
 
@@ -184,6 +193,7 @@ lasso.coef = predict(out, type="coefficients",s=bestlam)
 umbral = 0.1
 var_seleccionadas = which(abs(lasso.coef) > umbral)[-1]
 
+#generamos un submuestreo aleatorio 80-20
 train = sample(1:nrow(Boston), nrow(Boston)*0.8)
 test = (-train)
 
@@ -192,16 +202,26 @@ ridge.pred = predict(ridge.mod, s=100,newx = as.matrix(Boston[test, var_seleccio
 
 error = sqrt(mean((Boston[test,1] - ridge.pred)^2)/(nrow(Boston[test,])-2))
 print(error)
+```
 
+Anteriormente ya hemos generado las muestras de entrenamiento y test, ahora vamos a tomar la mediana de los datos de entrenamiento (ya hemos dicho por qué esto se hace así) y luego a generar la variable que llamaremos, *crim1* a partir de ella:
+
+```{r}
 mediana = median(Boston[train,1])
 crim1.train = sapply(Boston[train,1], function(x) if (x < mediana) return(-1) else return(1))
 crim1.test = sapply(Boston[test,1], function(x) if (x < mediana) return(-1) else return(1))
 
-data.train = data.frame(Boston[train,var_seleccionadas], crim1 = crim1.train)
-data.test = data.frame(Boston[test, var_seleccionadas], crim1 = crim1.test)
-
-svmfit = svm(crim1~., data=data.train, kernel = "linear")
-plot(svmfi)
+#generamos un dataframe con estos datos + la nueva var.
+data.train = data.frame(Boston[train,-1], crim1 = as.factor(crim1.train))
+data.test = data.frame(Boston[test, -1], crim1 = crim1.test)
 ```
+
+A continuación vamos a aplicar un modelo de support vector machine a los datos de entrenamienot, a priori el kernel que vamos a usar va a ser lineal, luego veremos si es necesario aplicar algún kernel de una complejidad mayor o no.
+
+```{r}
+svmfit = svm(crim1~., data=data.train[,-1], kernel = "linear")
+```
+
+Como vemos consideramos todas las variables excepto la variable crim ya que esta es la que queremos predecir con lo que estaríamos contaminando el aprendizaje. Indicar que como comentó la profesora no tenemos que usar solamente aquellas variables seleccionadas en apartados anteriores del ejercicio, sino que consideramos todas. Esto se debe a que según qué modelo de aprendizaje estemos empleando unas variables tendrán más importancia que otras; cada modelo tiene sus criterios y "preferencias", entonces a priori, sin un análisis más exhaustivo de los datos, no podemos descartar ninguna de las características.
 
 para el vaging mtray = ncol-1 de los datos que tenemos (es un random forest)
