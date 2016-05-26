@@ -31,7 +31,7 @@ Lo convertimos a factor, asfactor
 
 tune.knn va probando distintos parámetros y te devuelve el que mejor funciona.
 
-# APARTADO 1
+#Ejercicio 1
 
 ## a) Usar las funciones de R pairs() y boxplot() para investigar la dependencia entre mpg y las otras características. ¿Cuáles de las otras características parece más útil para predecir mpg? Justificar la respuesta.
 
@@ -172,6 +172,12 @@ cat("El error de test obtenido haciendo VC en KNN ha sido: ", err/5)
 
 #Ejercicio 2
 
+##Usar la base de datos Boston (en el paquete MASS de R) para ajustar un modelo que prediga si dado un suburbio este tiene una tasa de criminalidad (crim) por encima o por debajo de la mediana. Para ello considere la variable crim como la variable salida y el resto como variables predictoras.
+
+##a) Encontrar el subconjunto óptimo de variables predictoras a partir de un modelo de regresión-LASSO (usar paquete glmnet de R) donde seleccionamos sólo aquellas variables con coeficiente mayor a un umbral prefijado.
+
+##b) Ajustar un modelo de regresión regularizada con "weight-decay" (ridge-regression) y las variables seleccionadas. Estimar el error residual del modelo y discutir si el conportamiento de los residuos muestran algún indicio de "underfitting".
+
 Lo que vamos a hacer en primer lugar es emplear validación cruzada para obtener el mejor $s$ para nuestros datos, este s lo que hace es regular el impacto de la restricción de "contracción", la cual lleva a coeficientes más pequeños cuanto mayor sea su impacto, es decir, el valor de s.
 
 Con el objetivo de tener un buen s lo que vamos a hacer es obtenerlo mediante validación cruzada en la cual emplearemos todos los datos, ya vimos en teoria que con validación cruzada si empleamos todos los datos podemos tener un buen estimador sin riesgo de que usar los datos de test suponga un problema de sobreajuste.
@@ -184,7 +190,8 @@ cv.out = cv.glmnet(as.matrix(Boston[,-1]), Boston[,1],alpha=1)
 bestlam = cv.out$lambda.min #el mejor ese obtenido
 ```
 
-Ahora aplicamos un modelo lasso a nuestros datos
+Ahora aplicamos un modelo lasso a nuestros datos empleando el s que hemos obtenido, esto nos dará una serie de coeficientes para las distintas características de la muestra, aquellos que, en valor absoluto, estén por encima de un cierto umbral (que iremos modificando hasta obtener un buen resultado) serán los de las variables que seleccionemos para el siguiente apartado.
+
 ```{r}
 out = glmnet(as.matrix(Boston[,-1]),Boston[,1], alpha = 1)
 lasso.coef = predict(out, type="coefficients",s=bestlam)
@@ -194,15 +201,35 @@ umbral = 0.1
 var_seleccionadas = which(abs(lasso.coef) > umbral)[-1]
 
 #generamos un submuestreo aleatorio 80-20
+set.seed(41192)
 train = sample(1:nrow(Boston), nrow(Boston)*0.8)
 test = (-train)
 
 ridge.mod = glmnet(as.matrix(Boston[train, var_seleccionadas]), Boston[train,1], alpha = 0)
-ridge.pred = predict(ridge.mod, s=100,newx = as.matrix(Boston[test, var_seleccionadas]))
+ridge.pred = predict(ridge.mod, s=bestlam,newx = as.matrix(Boston[test, var_seleccionadas]))
 
 error = sqrt(mean((Boston[test,1] - ridge.pred)^2)/(nrow(Boston[test,])-2))
 print(error)
 ```
+
+El error que calculamos es el RSE que es la raíz cuadrada del error cuadrático medio, a continuación mostramos una tabla con los distintos parámetros que hemos probado. Los parámetros que hemos ido modificando han sido el umbral que marca la selección de las características y el s para el weight decay, ya que aunque tenemos uno óptimo para el Lasso no tiene por qué ser el mismo para esta nueva regresión, aunque veremo que sí. En la siguiente tabla recogemos los parámetros junto con el RSE obtenido con ellos (para la partición 80-20 que hacemos de los datos con la semilla seleccionada):
+
+| umbral | s             | RSE        |
+|--------|---------------|------------|
+| 0.1    | bestlam       | 0.3129668  |
+| 0.1    | 100           | 0.4107367  |
+| 0.1    | 200000bestlam | 0.4997851  |
+| 0      | bestlam       | 0.3214119  |
+| 0.45   | bestlam       | 0.47722858 |
+
+
+Como vemos el bestlam es el que mejores resultados da con el mismo umbral, también hemos obsevado que si dividimos el bestlam por prácticamente cualquier número el error no varía, no obstante y dado que veo que lo que marca el s es el peso de una condición que podríamos llamar de regularización opto por dejarlo lo "más grande posible", para evitar en la medida de lo posible sobreajuste. Cuando amplio demasiado el s, dándole mucho peso a la regularización entonces el algoritmo se olvida de ajustar los datos y da peores errores.
+
+Por otro lado si para el umbral hacemos que se consideren todas las variables el error empeora aunque no demasiado, indicando que no hay tanto ruido que afecte al algoritmo como podríamos pensar. En cambio lo que sí que empeora más el resultado es ser demasiado elitistas con la selección de variables ya que según vemos estamos perdiendo información para un buen ajuste.
+
+Por tanto en mi opinión observamos underfitting cuando le damos demasiado peso a la condición de regularización, cuando el s es demasiado grande, para los otros parámetros el error fuera de la muestra es relativamente bueno.
+
+##c) Definir una nueva variable con valores -1 y 1 usando el valor de la mediana de la variable crim como umbral. Ajustar un modelo SVM que prediga la nueva variable definida (usar el paquete e1071 de R). Describir con detalle cada uno de los pasos dados en el aprendizaje del modelo SVM. Comience ajustando un modelo lineal y argumente si considera necesario usar algún núcleo. Valorar el resultado del uso de distintos núcleos.
 
 Anteriormente ya hemos generado las muestras de entrenamiento y test, ahora vamos a tomar la mediana de los datos de entrenamiento (ya hemos dicho por qué esto se hace así) y luego a generar la variable que llamaremos, *crim1* a partir de ella:
 
@@ -216,12 +243,38 @@ data.train = data.frame(Boston[train,-1], crim1 = as.factor(crim1.train))
 data.test = data.frame(Boston[test, -1], crim1 = crim1.test)
 ```
 
-A continuación vamos a aplicar un modelo de support vector machine a los datos de entrenamienot, a priori el kernel que vamos a usar va a ser lineal, luego veremos si es necesario aplicar algún kernel de una complejidad mayor o no.
+A continuación vamos a aplicar un modelo de support vector machine a los datos de entrenamienot, a priori el kernel que vamos a usar va a ser lineal. El principal problema que tenemos es que nuestros datos no tienen solo dor propiedades con lo cual el hecho de hacer un plot de la clasificación dada no nos dirá qué tipo de núcleo obtener. Lo que vamos a hacer es usasr la función *pair* para ver si encontramos algún tipo de patrón:
 
 ```{r}
-svmfit = svm(crim1~., data=data.train[,-1], kernel = "linear")
+data.full = rbind(data.train, data.test)
+pairs(data.full)
 ```
 
-Como vemos consideramos todas las variables excepto la variable crim ya que esta es la que queremos predecir con lo que estaríamos contaminando el aprendizaje. Indicar que como comentó la profesora no tenemos que usar solamente aquellas variables seleccionadas en apartados anteriores del ejercicio, sino que consideramos todas. Esto se debe a que según qué modelo de aprendizaje estemos empleando unas variables tendrán más importancia que otras; cada modelo tiene sus criterios y "preferencias", entonces a priori, sin un análisis más exhaustivo de los datos, no podemos descartar ninguna de las características.
+Dado que es una clasificación binaria da la sensación de que el clasificador lineal va a ir, así que lo que vamos a hacer es entrenar un clasificador svm con cada uno de los núcleos disponibles y ver qué error fuera de la muestra obtenemos:
+s
+```{r}
+svmfitL = svm(crim1~., data=data.train[,-1], kernel = "linear")
+svm.pred = predict(svmfitL, newdata = data.test[,-1])
+cat("Obtenemos un error de (lineal):", sum(svm.pred != data.test$crim1))
+table(predict = svm.pred, truth = data.test$crim1)
+
+svmfitS = svm(crim1~., data=data.train[,-1], kernel = "sigmoid")
+svm.pred = predict(svmfitS, newdata = data.test[,-1])
+cat("Obtenemos un error de (sigmoidal):", sum(svm.pred != data.test$crim1))
+table(predict = svm.pred, truth = data.test$crim1)
+
+svmfitR = svm(crim1~., data=data.train[,-1], kernel = "radial")
+svm.pred = predict(svmfitR, newdata = data.test[,-1])
+cat("Obtenemos un error de (radial):", sum(svm.pred != data.test$crim1))
+table(predict = svm.pred, truth = data.test$crim1)
+
+svmfitP = svm(crim1~., data=data.train[,-1], kernel = "polynomial")
+svm.pred = predict(svmfitP, newdata = data.test[,-1])
+cat("Obtenemos un error de (polinomial):", sum(svm.pred != data.test$crim1))
+table(predict = svm.pred, truth = data.test$crim1)
+```
+Por lo tanto el que mejor resultados da es el clasificador con un núcleo lineal como sospechábamos.
+
+Como vemos consideramos todas las variables excepto la variable crim ya que esta es la que queremos predecir, con lo que estaríamos contaminando el aprendizaje. Indicar que como comentó la profesora no tenemos que usar solamente aquellas variables seleccionadas en apartados anteriores del ejercicio, sino que consideramos todas. Esto se debe a que según qué modelo de aprendizaje estemos empleando unas variables tendrán más importancia que otras; cada modelo tiene sus criterios y "preferencias", entonces a priori, sin un análisis más exhaustivo de los datos, no podemos descartar ninguna de las características.
 
 para el vaging mtray = ncol-1 de los datos que tenemos (es un random forest)
