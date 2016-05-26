@@ -11,8 +11,9 @@ library(ROCR)
 library(boot)
 library(dismo)
 library(glmnet)
-set.seed(41192)
-attach(Auto) #para no tener que poner el prefijo cada vez que queramo acceder a una atributo del dataframe
+library(randomForest)
+library(gbm)
+library(tree)
 ```
 
 Una de las bases de datos con las que vamos a trabajar tiene "más pinta de cuadrática" entonces nos podemos plantear hacerlo del siguiente modo:
@@ -36,6 +37,8 @@ tune.knn va probando distintos parámetros y te devuelve el que mejor funciona.
 ## a) Usar las funciones de R pairs() y boxplot() para investigar la dependencia entre mpg y las otras características. ¿Cuáles de las otras características parece más útil para predecir mpg? Justificar la respuesta.
 
 ```{r}
+set.seed(41192)
+attach(Auto)
 pairs(Auto)
 pairs(mpg ~ displacement + horsepower + weight)
 ```
@@ -277,4 +280,48 @@ Por lo tanto el que mejor resultados da es el clasificador con un núcleo lineal
 
 Como vemos consideramos todas las variables excepto la variable crim ya que esta es la que queremos predecir, con lo que estaríamos contaminando el aprendizaje. Indicar que como comentó la profesora no tenemos que usar solamente aquellas variables seleccionadas en apartados anteriores del ejercicio, sino que consideramos todas. Esto se debe a que según qué modelo de aprendizaje estemos empleando unas variables tendrán más importancia que otras; cada modelo tiene sus criterios y "preferencias", entonces a priori, sin un análisis más exhaustivo de los datos, no podemos descartar ninguna de las características.
 
+# Ejercicio 3
+
+##Usar el conjunto de datos Boston y las librerías randomForest y gbm de R.
+
+##1. Dividir la base de datos en dos conjuntos de entrenamiento (80%) y test (20%).
+
+```{r}
+attach(Boston)
+train = sample(nrow(Boston), nrow(Boston)*0.8)
+test = -train
+```
+
+##2. Usando la variable medv como salida y el resto como predictoras, ajustar un modelo de regresión usando bagging. Explicar cada uno de los parémtros usados. Calcular el error de test.
+
+```{r}
+set.seed(41192)
+bag = randomForest(medv ~., data = Boston, subset = train, mtray = ncol(Boston)-1, importance = TRUE)
+pred = predict(bag, newdata = Boston[test,])
+cat("El MSE con bagging es: ", mean((pred - Boston[test,]$medv)^2), "\n")
+```
+
+##3. Ajustar un modelo de regresión usando Random Forest. Obtener una estimación del número de árbol necesario. Justificar el resto de parámetros usados en el ajuste. Calcular el error de test y compararlo con el obtenido con bagging.
+
+```{r}
+randomfcv = rfcv(Boston[,1:13], Boston$medv)
+#uso 6 porque es el que menos MSE da quitando el 13 que seria hacer el bagging
+rf = randomForest(medv ~., data = Boston, subset = train, mtray = 6, importance = TRUE)
+```
+
+##4. Ajustar un modelo de regresión usando Boosting (usar gbm con distribution = 'gaussian'). Calcular el error de test y compararlo con el obtenido con bagging y Random Forest.
+
+#Ejercicio 4
+
+##Usar el conjunto de datos OJ que es parte del paquete ISLR.
+
+##1. Crear un conjunto de entrenamiento conteniendo una muestra aleatoria de 800 observaciones, y un conjunto de test conteniendo el resto de observaciones. Ajustar un árbol a los datos de entrenamiento, con "Purchase" como la variable respuesta y las otras variables como predictores (paquete tree de R).
+
+##2. Usar la función summary() para generar un resumen estadístico acerca del árbol y describir los resultados obtenidos: tasa de error de "training", número de nodos del árbol, etc.
+
+##3. Crear un dibujo del árbol e interpretar los resultados.
+
+##4. Predecir la respuesta de los datos de test, y generar e interpretar la matriz de confusión de los datos de test. ¿Cuál es la tasa de error de test? ¿Cuál es la precisión del test?
+
+##5. Aplicar la función cv.tree() al conjunto de "training" y determinar el tamaño óptimo del árbol. ¿Qué hace cv.tree?
 para el vaging mtray = ncol-1 de los datos que tenemos (es un random forest)
