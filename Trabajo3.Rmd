@@ -304,7 +304,20 @@ cat("El MSE con bagging es: ", mean((pred - Boston[test,]$medv)^2), "\n")
 
 ##3. Ajustar un modelo de regresión usando Random Forest. Obtener una estimación del número de árbol necesario. Justificar el resto de parámetros usados en el ajuste. Calcular el error de test y compararlo con el obtenido con bagging.
 
+Para obtener una aproximación del número de árboles necesario lo que vamos a hacer es usar la validación cruzada con 5 particiones probando valores de 100 a 500 dando saltos de 20 en 20.
 ```{r}
+#vamos a obtener una estimación del número de árboles necesarios
+sapply(seq(100, 500, 20), function(x) {
+  folds = kfold(Boston, k = 5)
+  err = 0
+
+  for (i in seq(5)) {
+    getErrorKNN(full.data[folds != i,], full.data[folds == i,], et.train, et.test)
+    KNN = knn(full.data[folds != i,], full.data[folds == i,], full.labels[folds != i], k = mejor_k, prob = TRUE)
+    err = err + sum(full.labels[folds == i] != KNN)/length(full.labels[folds == i])*100
+  }
+
+})
 randomfcv = rfcv(Boston[,1:13], Boston$medv)
 #uso 6 porque es el que menos MSE da quitando el 13 que seria hacer el bagging
 rf = randomForest(medv ~., data = Boston, subset = train, mtray = 6, importance = TRUE)
@@ -319,8 +332,8 @@ Por lo tanto como podemos comprobar el error con random forest es algo mayor que
 
 ```{r}
 set.seed(41192)
-BOSton = gbm(medv ~ ., data = Boston[train,], distribution = "gaussian")
-pred = predict(BOSton, newdata = Boston[test,], n.trees = 100)
+BOSton = gbm(medv ~ ., data = Boston[train,], distribution = "gaussian", n.trees = 500)
+pred = predict(BOSton, newdata = Boston[test,], n.trees = 500)
 cat("El MSE con boosting es: ", mean((pred - Boston[test,]$medv)^2), "\n")
 ```
 
