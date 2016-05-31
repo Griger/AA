@@ -123,11 +123,11 @@ getErrorKNN <- function(datos.train, datos.test, et.train, et.test ){
   cat("Se ha elegido como mejor k el: ", mejor_k, "\n")
   err.test = sum(et.test != KNN)/length(et.test)*100
   cat("El % de errores que obtenemos en el test es: ", err.test, "\n")
-  
-  KNN
+  #print(KNN)
+  list(KNN, err.test)
 }
 
-KNN =  getErrorKNN(trainRL, testRL, mpg1.train, mpg1.test)
+KNN =  getErrorKNN(trainRL, testRL, mpg1.train, mpg1.test)[[1]]
 ```
 
 * Pintar las curvas ROC (instalar paquete ROCR en R) y comparar y valorar los resultados obtenidos por ambos modelos.
@@ -150,30 +150,32 @@ Al inicio RL parece mas estable puesto que pasa más tiempo teniendo un tasa nul
 
 Cuando la tasa de falsos positivos aumenta es nuevamente la RL la que mejor se comporta puesto que tiene una tasa de verdaderos positivos más elevada aunqeue no difiere en gran medidad de la del KNN. Con lo cual en mi opinión es el KNN el que tiene un mejor comportamiento puesto que es el que da mejores resultados ante un error igual.
 
-## e) Estimar el error de test de ambos modelos pero usando Validación Cruzada de 5-particiones. Comparar con los resulados obtenidos en el punto anterior.
+## e) (Bonus 1) Estimar el error de test de ambos modelos pero usando Validación Cruzada de 5-particiones. Comparar con los resulados obtenidos en el punto anterior.
 
 ```{r}
-fullRL = rbind(trainRL, testRL)
-RL = glm(mpg01 ~ displacement+horsepower+weight, data = fullRL, family = binomial)
-pp = cv.glm(fullRL, RL, K = 5)
+mediana = median(datos$mpg)
+mpg01 = sapply(datos$mpg, function(x) if (x < mediana) return(0) else return(1))
+fullData = data.frame(mpg01 = mpg01, datos)
+
+RL = glm(mpg01 ~ displacement+horsepower+weight, data = fullData, family = binomial)
+pp = cv.glm(fullData, RL, K = 5)
 
 cat("El error de test obtenido haciendo VC en RL ha sido: ", pp$delta[1]*100, "\n")
 
-'
-folds = kfold(full.data, k = 5)
+folds = kfold(fullData, k = 5)
 err = 0
 
 for (i in seq(5)) {
-  getErrorKNN(full.data[folds != i,], full.data[folds == i,], et.train, et.test)
-  KNN = knn(full.data[folds != i,], full.data[folds == i,], full.labels[folds != i], k = mejor_k, prob = TRUE)
-  err = err + sum(full.labels[folds == i] != KNN)/length(full.labels[folds == i])*100
+  err = err + getErrorKNN(fullData[folds != i,], fullData[folds == i,], fullData[folds != i,]$mpg01, fullData[folds == i,]$mpg01)[[2]]
 }
 
 cat("El error de test obtenido haciendo VC en KNN ha sido: ", err/5)
-'
 ```
 
-#Ejercicio 2
+## f) (Bonus 2) Ajustar el mejor modelo de regresión posible considerando la variables mpg como salida y el resto como predictoras. Justificar el modelo ajustando en base al patrón de los residuos. Estimar su error de entrenamiento y de test.
+
+
+#Ejercicio 2 
 
 ##Usar la base de datos Boston (en el paquete MASS de R) para ajustar un modelo que prediga si dado un suburbio este tiene una tasa de criminalidad (crim) por encima o por debajo de la mediana. Para ello considere la variable crim como la variable salida y el resto como variables predictoras.
 
@@ -306,24 +308,36 @@ cat("El MSE con bagging es: ", mean((pred - Boston[test,]$medv)^2), "\n")
 
 Para obtener una aproximación del número de árboles necesario lo que vamos a hacer es usar la validación cruzada con 5 particiones probando valores de 100 a 500 dando saltos de 20 en 20.
 ```{r}
+set.seed(41192)
+randomfcv = rfcv(Boston[,1:13], Boston$medv)
+#entonces voy a usar mtray = 6 orque es el que menos MSE da quitando el 13 que sería hacer el bagging
 #vamos a obtener una estimación del número de árboles necesarios
-sapply(seq(100, 500, 20), function(x) {
-  folds = kfold(Boston, k = 5)
+CVerrs = sapply(seq(100, 500, 20), function(x) {
+  print(x)
+  K = 5
+  folds = kfold(Boston, k = K)
   err = 0
 
-  for (i in seq(5)) {
-    getErrorKNN(full.data[folds != i,], full.data[folds == i,], et.train, et.test)
-    KNN = knn(full.data[folds != i,], full.data[folds == i,], full.labels[folds != i], k = mejor_k, prob = TRUE)
-    err = err + sum(full.labels[folds == i] != KNN)/length(full.labels[folds == i])*100
+  for (i in seq(K)) {
+    rf = randomForest(medv ~ ., data = Boston, subset = which(folds != i), mtry = 6, importance = TRUE)
+    pred = predict(rf, newdata = Boston[folds == i,])
+    err = err + mean((pred - Boston[folds == i,]$medv)^2)
   }
-
+  
+  err/K
 })
-randomfcv = rfcv(Boston[,1:13], Boston$medv)
+
+opt_ntree = seq(100,500,20)[which.min(CVerrs)]
 #uso 6 porque es el que menos MSE da quitando el 13 que seria hacer el bagging
 rf = randomForest(medv ~., data = Boston, subset = train, mtray = 6, importance = TRUE)
 
 pred = predict(rf, newdata = Boston[test,])
-cat("El MSE con rf es: ", mean((pred - Boston[test,]$medv)^2), "\n")
+cat("El MSE con rf con 500 árboles es: ", mean((pred - Boston[test,]$medv)^2), "\n")
+
+rf = randomForest(medv ~., data = Boston, subset = train, mtray = 6, ntree = opt_ntree, importance = TRUE)
+
+pred = predict(rf, newdata = Boston[test,])
+cat("El MSE con rf con opt árboles es: ", mean((pred - Boston[test,]$medv)^2), "\n")
 ```
 
 Por lo tanto como podemos comprobar el error con random forest es algo mayor que con bagging pero no demasiado, con lo cual podemos pensar en dos cosas: lo primero es que quizás todas las variables no sean relevante para la clasficación e incluso que introduzcan ruido en ésta, en segundo lugar vemos como el random forest con un procedimiento que será más eficiente, al emplear menos variables, obtiene un mejor resultado. Por lo tanto se pone de relieve como una buena seleccion de variables es muy importante. Ademas ha habido una ocasion en la cual el error con random forest ha sido incluso menor, pero ahora con esta semilla los resultados son estos.
@@ -401,3 +415,11 @@ print(cvTree)
 ```
 
 Con lo cual en base a la tasa de error de clasificacion el tamaño optimo es el 4, nodos terminales, recordemos que nosotros obteníamos 8 nodos terminales, con lo cuál aquí se reduce a la mitad.
+
+##Bonus 4. Generar un gráfico con el tamaño del árbol en el eje x (número de nodos) y la tasa de error de validación cruzada en el eje y. ¿Qué tamaño de árbol corresponde a la tasa más pequeña de error de clasificación por validación cruzada?
+
+```{r}
+#plot(cvTree)
+plot(cvTree$size, cvTree$dev, type = 'b')
+```
+
