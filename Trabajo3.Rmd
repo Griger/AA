@@ -258,23 +258,23 @@ pairs(data.full)
 Dado que es una clasificación binaria da la sensación de que el clasificador lineal va a ir, así que lo que vamos a hacer es entrenar un clasificador svm con cada uno de los núcleos disponibles y ver qué error fuera de la muestra obtenemos:
 s
 ```{r}
-svmfitL = svm(crim1~., data=data.train[,-1], kernel = "linear")
-svm.pred = predict(svmfitL, newdata = data.test[,-1])
+svmfitL = svm(crim1~., data=data.train, kernel = "linear")
+svm.pred = predict(svmfitL, newdata = data.test)
 cat("Obtenemos un error de (lineal):", sum(svm.pred != data.test$crim1))
 table(predict = svm.pred, truth = data.test$crim1)
 
-svmfitS = svm(crim1~., data=data.train[,-1], kernel = "sigmoid")
-svm.pred = predict(svmfitS, newdata = data.test[,-1])
+svmfitS = svm(crim1~., data=data.train, kernel = "sigmoid")
+svm.pred = predict(svmfitS, newdata = data.test)
 cat("Obtenemos un error de (sigmoidal):", sum(svm.pred != data.test$crim1))
 table(predict = svm.pred, truth = data.test$crim1)
 
-svmfitR = svm(crim1~., data=data.train[,-1], kernel = "radial")
-svm.pred = predict(svmfitR, newdata = data.test[,-1])
+svmfitR = svm(crim1~., data=data.train, kernel = "radial")
+svm.pred = predict(svmfitR, newdata = data.test)
 cat("Obtenemos un error de (radial):", sum(svm.pred != data.test$crim1))
 table(predict = svm.pred, truth = data.test$crim1)
 
-svmfitP = svm(crim1~., data=data.train[,-1], kernel = "polynomial")
-svm.pred = predict(svmfitP, newdata = data.test[,-1])
+svmfitP = svm(crim1~., data=data.train, kernel = "polynomial")
+svm.pred = predict(svmfitP, newdata = data.test)
 cat("Obtenemos un error de (polinomial):", sum(svm.pred != data.test$crim1))
 table(predict = svm.pred, truth = data.test$crim1)
 ```
