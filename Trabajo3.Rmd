@@ -195,7 +195,7 @@ cat("El error de test obtenido haciendo VC en KNN ha sido: ", err/5)
 ## f) (Bonus 2) Ajustar el mejor modelo de regresión posible considerando la variables mpg como salida y el resto como predictoras. Justificar el modelo ajustando en base al patrón de los residuos. Estimar su error de entrenamiento y de test.
 
 ```{r}
-R = glm(mpg01 ~ poly(displacement,2)+poly(horsepower,2)+poly(weight,2)+displacement+horsepower+weight, data = trainRL, family = binomial)
+R = lm(mpg ~ poly(displacement,2)+poly(horsepower,2)+poly(weight,2)+displacement+horsepower+weight, data = trainRL, family = binomial)
 
 prediccion = predict(R, newdata = testRL, type = "response")
 R.pred = rep(0, length(testRL$mpg01))
@@ -291,22 +291,22 @@ Dado que es una clasificación binaria da la sensación de que el clasificador l
 ```{r}
 svmfitL = svm(crim1~., data=data.train, kernel = "linear")
 svm.pred = predict(svmfitL, newdata = data.test)
-cat("Obtenemos un error de (lineal):", sum(svm.pred != data.test$crim1))
+cat("Obtenemos un error de (lineal):", mean(svm.pred != data.test$crim1))
 table(predict = svm.pred, truth = data.test$crim1)
 
 svmfitS = svm(crim1~., data=data.train, kernel = "sigmoid")
 svm.pred = predict(svmfitS, newdata = data.test)
-cat("Obtenemos un error de (sigmoidal):", sum(svm.pred != data.test$crim1))
+cat("Obtenemos un error de (sigmoidal):", mean(svm.pred != data.test$crim1))
 table(predict = svm.pred, truth = data.test$crim1)
 
 svmfitR = svm(crim1~., data=data.train, kernel = "radial")
 svm.pred = predict(svmfitR, newdata = data.test)
-cat("Obtenemos un error de (radial):", sum(svm.pred != data.test$crim1))
+cat("Obtenemos un error de (radial):", mean(svm.pred != data.test$crim1))
 table(predict = svm.pred, truth = data.test$crim1)
 
 svmfitP = svm(crim1~., data=data.train, kernel = "polynomial")
 svm.pred = predict(svmfitP, newdata = data.test)
-cat("Obtenemos un error de (polinomial):", sum(svm.pred != data.test$crim1))
+cat("Obtenemos un error de (polinomial):", mean(svm.pred != data.test$crim1))
 table(predict = svm.pred, truth = data.test$crim1)
 ```
 Por lo tanto el que mejor resultados da es el clasificador con un núcleo lineal como sospechábamos.
@@ -489,7 +489,6 @@ Con lo cual en base a la tasa de error de clasificacion el tamaño optimo es el 
 ##Bonus 4. Generar un gráfico con el tamaño del árbol en el eje x (número de nodos) y la tasa de error de validación cruzada en el eje y. ¿Qué tamaño de árbol corresponde a la tasa más pequeña de error de clasificación por validación cruzada?
 
 ```{r}
-#plot(cvTree)
 plot(cvTree$size, cvTree$dev, type = 'b')
 ```
-El tamaño del árbol óptimo como ya hemos dicho antes es 4.
+El tamaño del árbol óptimo como ya hemos dicho antes es 4, por lo tanto vemos con disminuye un poco el error, solamente baja en 1, pero el modelo de clasificación sería mucho más simple, no como en el árbol obtenido anteriormente que tenía ramas que sobraban.
