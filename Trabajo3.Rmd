@@ -191,19 +191,50 @@ for (i in seq(5)) {
 
 cat("El error de test obtenido haciendo VC en KNN ha sido: ", err/5)
 ```
+Como podemos ver el error obtenido es menor que en los puntos anteriores, el tamaño de las particiones de training y test es el mismo con lo que esto no influye en la diferencia. Si bien es cierto que ahora nuestra variable mpg01 se hace con todos los datos disponibles en Auto por lo tanto se tiene más información con lo que es lógico que el ajuste sea mejor.
 
 ## f) (Bonus 2) Ajustar el mejor modelo de regresión posible considerando la variables mpg como salida y el resto como predictoras. Justificar el modelo ajustando en base al patrón de los residuos. Estimar su error de entrenamiento y de test.
 
-```{r}
-R = lm(mpg ~ poly(displacement,2)+poly(horsepower,2)+poly(weight,2)+displacement+horsepower+weight, data = trainRL, family = binomial)
+```{r, echo=FALSE}
+R = lm(mpg ~ displacement + horsepower + weight, data = datos.train)
+prediccion = predict(R, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
 
-prediccion = predict(R, newdata = testRL, type = "response")
-R.pred = rep(0, length(testRL$mpg01))
-R.pred[prediccion > .5] = 1
+R = lm(mpg ~ displacement*weight, data = datos.train)
+prediccion = predict(R, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
 
-#calculamos el porcentaje de error
-cat("El % de errores en test con R es: ", sum(testRL$mpg01 != R.pred)/length(testRL$mpg01)*100)
+R = lm(mpg ~ horsepower*displacement, data = datos.train)
+prediccion = predict(R, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+
+R = lm(mpg ~ horsepower*weight, data = datos.train)
+prediccion = predict(R, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+
+R = lm(mpg ~ horsepower*weight + poly(displacement,2), data = datos.train)
+prediccion = predict(R, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+
+R = lm(mpg ~ horsepower*weight + displacement, data = datos.train)
+prediccion = predict(R, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+
+R = lm(mpg ~ horsepower*weight + poly(displacement,5), data = datos.train)
+prediccion = predict(R, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+
+R = lm(mpg ~ poly(horsepower,2)+ poly(weight,2) + poly(displacement,2), data = datos.train)
+prediccion = predict(R, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+
+R = lm(mpg ~ poly(horsepower,8)+ poly(weight,8) + poly(displacement,8), data = datos.train)
+prediccion = predict(R, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
 ```
+Con los primeros 4 experimentos vemos como hay una correlación entre las variables *horsepower* y *weight* ya que trabajando con ellas como variables correladas disminuimos el MSE. Ya habíamos hecho anteriormente el experimento usando polinomios cuadráticos para todas las variables viendo que el error bajaba y como podemos observar si usámos polinomios de grado 8 entonces el error sube, mostrando claramente sobreajuste.
+
+Finalmente nos decantamos por mantener estas dos variables correladas y usar tambien la variable *displacement* por medio de polinomios cuadráticos para bajar un poco el MSE, aunque realmente tener un modelo mas complejo para la mejora que supone no merece tanto la pena.
 
 #Ejercicio 2 
 
@@ -289,25 +320,46 @@ pairs(data.full)
 Dado que es una clasificación binaria da la sensación de que el clasificador lineal va a ir, así que lo que vamos a hacer es entrenar un clasificador svm con cada uno de los núcleos disponibles y ver qué error fuera de la muestra obtenemos:
 
 ```{r}
-svmfitL = svm(crim1~., data=data.train, kernel = "linear")
-svm.pred = predict(svmfitL, newdata = data.test)
-cat("Obtenemos un error de (lineal):", mean(svm.pred != data.test$crim1))
-table(predict = svm.pred, truth = data.test$crim1)
+set.seed(41192)
 
-svmfitS = svm(crim1~., data=data.train, kernel = "sigmoid")
-svm.pred = predict(svmfitS, newdata = data.test)
-cat("Obtenemos un error de (sigmoidal):", mean(svm.pred != data.test$crim1))
-table(predict = svm.pred, truth = data.test$crim1)
+errL = 0
+errS = 0
+errP = 0
+errR = 0
 
-svmfitR = svm(crim1~., data=data.train, kernel = "radial")
-svm.pred = predict(svmfitR, newdata = data.test)
-cat("Obtenemos un error de (radial):", mean(svm.pred != data.test$crim1))
-table(predict = svm.pred, truth = data.test$crim1)
+for(i in seq(100)) {
+  train = sample(1:nrow(Boston), nrow(Boston)*0.8)
+  test = (-train)
+  
+  mediana = median(Boston[train,1])
+  crim1.train = sapply(Boston[train,1], function(x) if (x < mediana) return(-1) else return(1))
+  crim1.test = sapply(Boston[test,1], function(x) if (x < mediana) return(-1) else return(1))
 
-svmfitP = svm(crim1~., data=data.train, kernel = "polynomial")
-svm.pred = predict(svmfitP, newdata = data.test)
-cat("Obtenemos un error de (polinomial):", mean(svm.pred != data.test$crim1))
-table(predict = svm.pred, truth = data.test$crim1)
+
+  data.train = data.frame(Boston[train,-1], crim1 = as.factor(crim1.train))
+  data.test = data.frame(Boston[test, -1], crim1 = as.factor(crim1.test))
+
+  svmfitL = svm(crim1~., data=data.train, kernel = "linear")
+  svm.pred = predict(svmfitL, newdata = data.test)
+  errL = errL + mean(svm.pred != data.test$crim1)
+  
+  svmfitS = svm(crim1~., data=data.train, kernel = "sigmoid")
+  svm.pred = predict(svmfitS, newdata = data.test)
+  errS = errS + mean(svm.pred != data.test$crim1)
+  
+  svmfitR = svm(crim1~., data=data.train, kernel = "radial")
+  svm.pred = predict(svmfitR, newdata = data.test)
+  errR = errR + mean(svm.pred != data.test$crim1)
+  
+  svmfitP = svm(crim1~., data=data.train, kernel = "polynomial")
+  svm.pred = predict(svmfitP, newdata = data.test)
+  errP = errP + mean(svm.pred != data.test$crim1)
+}
+
+cat("Obtenemos en promedio un error medio con kernel lineal de:", errL/100, "\n")
+cat("Obtenemos en promedio un error medio con kernel sigmoidal de:", errS/100, "\n")
+cat("Obtenemos en promedio un error medio con kernel radial de:", errR/100, "\n")
+cat("Obtenemos en promedio un error medio con kernel polinomial de:", errP/100, "\n")
 ```
 Por lo tanto el que mejor resultados da es el clasificador con un núcleo lineal como sospechábamos.
 
