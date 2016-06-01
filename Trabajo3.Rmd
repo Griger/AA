@@ -194,6 +194,16 @@ cat("El error de test obtenido haciendo VC en KNN ha sido: ", err/5)
 
 ## f) (Bonus 2) Ajustar el mejor modelo de regresión posible considerando la variables mpg como salida y el resto como predictoras. Justificar el modelo ajustando en base al patrón de los residuos. Estimar su error de entrenamiento y de test.
 
+```{r}
+R = glm(mpg01 ~ poly(displacement,2)+poly(horsepower,2)+poly(weight,2)+displacement+horsepower+weight, data = trainRL, family = binomial)
+
+prediccion = predict(R, newdata = testRL, type = "response")
+R.pred = rep(0, length(testRL$mpg01))
+R.pred[prediccion > .5] = 1
+
+#calculamos el porcentaje de error
+cat("El % de errores en test con R es: ", sum(testRL$mpg01 != R.pred)/length(testRL$mpg01)*100)
+```
 
 #Ejercicio 2 
 
@@ -266,7 +276,7 @@ crim1.test = sapply(Boston[test,1], function(x) if (x < mediana) return(-1) else
 
 #generamos un dataframe con estos datos + la nueva var, quitando crim que no la emplearemos.
 data.train = data.frame(Boston[train,-1], crim1 = as.factor(crim1.train))
-data.test = data.frame(Boston[test, -1], crim1 = crim1.test)
+data.test = data.frame(Boston[test, -1], crim1 = as.factor(crim1.test))
 ```
 
 A continuación vamos a aplicar un modelo de SVM a los datos de entrenamiento, a priori el kernel que vamos a usar va a ser lineal. El principal problema que tenemos es que nuestros datos no tienen sólo dos propiedades con lo cual el hecho de hacer un plot de la clasificación dada (como se hace en el libro) no nos dirá qué tipo de núcleo obtener. Lo que vamos a hacer es usasr la función *pair* para ver si encontramos algún tipo de patrón:
@@ -302,6 +312,28 @@ table(predict = svm.pred, truth = data.test$crim1)
 Por lo tanto el que mejor resultados da es el clasificador con un núcleo lineal como sospechábamos.
 
 Como vemos consideramos todas las variables excepto la variable crim ya que esta es la que queremos predecir, con lo que estaríamos contaminando el aprendizaje. Indicar que como comentó la profesora no tenemos que usar solamente aquellas variables seleccionadas en apartados anteriores del ejercicio, sino que consideramos todas. Esto se debe a que según qué modelo de aprendizaje estemos empleando unas variables tendrán más importancia que otras; cada modelo tiene sus criterios y "preferencias", entonces a priori, sin un análisis más exhaustivo de los datos, no podemos descartar ninguna de las características.
+
+##Bonus 3 Estimar el error de entrenamiento y test por validación cruzada de 5 particiones.
+
+```{r}
+mediana = median(Boston$crim)
+crim1 = sapply(Boston$crim, function(x) if (x < mediana) return(-1) else return(1))
+data.full = data.frame(Boston[,-1], crim1 = as.factor(crim1))
+
+folds = kfold(Boston, k = 5)
+err.in = 0
+err.out = 0
+
+for (i in seq(5)) {
+  svmfit = svm(crim1 ~ ., data=data.full[folds != i,], kernel = "linear")
+  err.in = err.in + sum(svmfit$fitted != data.full[folds != i,]$crim1)
+  pred = predict(svmfit, newdata = data.full[folds == i,])
+  err.out = err.out + sum(pred != data.full[folds == i,]$crim1)
+}
+
+cat("El error de train estimados por CV es: ", err.in/5, ".\n")
+cat("El error de test estimados por CV es: ", err.out/5, ".\n")
+```
 
 # Ejercicio 3
 
