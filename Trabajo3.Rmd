@@ -16,22 +16,6 @@ library(gbm)
 library(tree)
 ```
 
-Una de las bases de datos con las que vamos a trabajar tiene "más pinta de cuadrática" entonces nos podemos plantear hacerlo del siguiente modo:
-
-modelo3 <- lm(y ~ I(x2^2)+x2) tenemos que poner la palabra reservada I para que interprete correctamente la potencia.
-
-poly() para hacer combinaciones polinómicas.
-
-Puede ocurrir que haya sinergia entre atributos, es decir, que no sean independientes unos de otros, entonces vamos a ver cómo escrbimos una fórmula para que el modelo se ajuste como queremos a los datos que le pasamos.
-
-modeloSinergico <- lm(y ~ x1*x2, data = datos) <=> lm(y ~ x1+x2+x1:x2, data = datos)
-
-Despues de aprender un modelo podemos poner names(modelo) y nos dice los elementos que podemos consultar del modelo.
-
-Lo convertimos a factor, asfactor
-
-tune.knn va probando distintos parámetros y te devuelve el que mejor funciona.
-
 #Ejercicio 1
 
 ## a) Usar las funciones de R pairs() y boxplot() para investigar la dependencia entre mpg y las otras características. ¿Cuáles de las otras características parece más útil para predecir mpg? Justificar la respuesta.
@@ -43,7 +27,7 @@ pairs(Auto)
 pairs(mpg ~ displacement + horsepower + weight)
 ```
 
-Como podemos ver las "gráficas de dependencias" de mpg con respecto a *displacement*, *horsepower* y *weight* son las gráficas que presentan un patrón más parecido entre ellas indicando que mpg tiene una relación fuerte con estas variables ya que se ajusta a ellas de un modo similar. Por ejemplo si vemos la gráfica con respecto a *acceleration* lo que tenemos es una nube de puntos mucho más dispersa. En cambio estas gráficas si que tienen un aspecto de ser ajustables linealmente.
+Como podemos ver las "gráficas de dependencias" de mpg con respecto a *displacement*, *horsepower* y *weight* son las gráficas que presentan un patrón más parecido entre ellas indicando que mpg tiene una relación fuerte con estas variables ya que se ajusta a ellas de un modo similar. Por ejemplo si vemos la gráfica con respecto a *acceleration* lo que tenemos es una nube de puntos mucho más dispersa. En cambio estas gráficas sí que tienen un aspecto de ser ajustables linealmente.
 
 ```{r}
 boxplot(mpg ~ cylinders)
@@ -79,6 +63,8 @@ datos.test = datos[-idx_train,]
 ```
 ## d) Crear una variable binaria, mpg01, que será igual a 1 si la variable mpg contiene un valor por encima de la mediana, y -1 si mpg contiene un valor por debajo de la mediana. La mediana se puede calcular usando la función median(). (Nota: puede resultar útil usar la función data.frames() para unir en un mismo conjunto de datos la nueva variable mpg01 y las otras variables Auto).
 
+En lugar de los valores -1 y 1 que se dicen el enunciado lo que hacemos es darle los valores 0 y 1 ya quer esto es más natural para regresión logística (la sigmoide va de 0 a 1) y la profesora me sugirió tal cosa.
+
 ```{r}
 mediana = median(datos.train$mpg)
 mpg1.train = sapply(datos.train$mpg, function(x) if (x < mediana) return(0) else return(1))
@@ -103,13 +89,15 @@ RL.pred[prediccion > .5] = 1
 #calculamos el porcentaje de error
 cat("El % de errores en test con RL es: ", sum(testRL$mpg01 != RL.pred)/length(testRL$mpg01)*100)
 ```
-
+Obtenemos un error del 15% que si bien no es demasiado alto puede deberse a la incertidumbre implícita en la clasificación que da la regresión logística, ya que esta nos permite trabajar con eso, expresar una cierta incertidumbre en las decisiones.
 
 * Ajustar un modelo K-NN a los datos de entrenamiento y predecir mpg01 usando solamente las variables seleccionadas en b). ¿Cuál es el error de test del modelo? ¿Cuál es el valor de K que mejor ajusta los datos?
 
-Lo que vamos a hacer en primer lugar es normalizar los datos de modo que a la hora de calcular las distancias, que es como funciona KNN, unas características no tenga a priori más peso que otras.
+Lo que vamos a hacer en primer lugar es normalizar los datos de modo que a la hora de calcular las distancias, que es como funciona KNN, una característica no tenga a priori más peso que otras.
 
-Observemos que para normalizar los datos de test empleamos aquellos escalados que se hacen sobre los de train, de modo que para calcular el escalo de train no usemos los datos de test y así no contaminar el proceso.
+Observemos que para normalizar los datos de test empleamos aquellos escalados que se hacen sobre los de train, de modo que para calcular el escalado de train no usemos los datos de test y así no contaminar el proceso.
+
+Hemos elaborado una función para que sea más cómodo calcular este error de clasificación en futuros apartados:
 
 ```{r}
 getErrorKNN <- function(datos.train, datos.test, et.train, et.test){
@@ -137,12 +125,12 @@ getErrorKNN <- function(datos.train, datos.test, et.train, et.test){
   #calcuamos el error
   err.test = sum(et.test != KNN)/length(et.test)*100
   cat("El % de errores que obtenemos en el test es: ", err.test, "\n")
-  #print(KNN)
   list(KNN, err.test)
 }
 
 KNN =  getErrorKNN(trainRL, testRL, mpg1.train, mpg1.test)[[1]]
 ```
+Como podemos ver el error es algo más alto, un 1%, que el que obtenemos con regresión logística, aquí no hablamos tanto de incertidumbre sino de cómo se distribuyen "espacialmente" las muestras, lo que puede dar lugar a que los vecinos más cercanos a una muestra determinada no sean, la mayoría, de la clase real a la que pertenece la muestra a la que queremos etiquetar. El KNN es un algoritmo que depende fuertemente de la distribución de las muestras de entrenamiento.
 
 * Pintar las curvas ROC (instalar paquete ROCR en R) y comparar y valorar los resultados obtenidos por ambos modelos.
 
@@ -162,9 +150,9 @@ perf = performance(pKNN, "tpr", "fpr")
 plot(perf,  add = TRUE, col = "red")
 legend(0.8,0.2,c("RL", "KNN"), lty=c(1,1),lwd=c(2.5,2.5),col=c("black","red"))
 ```
-Al inicio RL parece mas estable puesto que pasa más tiempo teniendo un tasa nula de falso positivos, ahora bien cuando esta tasa aumenta vemos como antes la misma pérdida o el mismo error de clasificación es el KNN el que acierta un mayor número de veces, es decir, que aunque cometemos el mismo error al menos clasificamos bien más muestras.
+Al inicio RL parece mas estable puesto que pasa más tiempo teniendo un tasa menor de falso positivos, ahora bien cuando esta tasa aumenta vemos como antes la misma pérdida o el mismo error de clasificación es el KNN el que acierta un mayor número de veces, es decir, que aunque cometemos el mismo error al menos clasificamos bien más muestras.
 
-Cuando la tasa de falsos positivos aumenta es nuevamente la RL la que mejor se comporta puesto que tiene una tasa de verdaderos positivos más elevada aunqeue no difiere en gran medidad de la del KNN. Con lo cual en mi opinión es el KNN el que tiene un mejor comportamiento puesto que es el que da mejores resultados ante un error igual.
+Cuando la tasa de falsos positivos aumenta es nuevamente la RL la que mejor se comporta puesto que tiene una tasa de verdaderos positivos más elevada aunque no difiere en gran medidad de la del KNN. Con lo cual en mi opinión es el KNN el que tiene un mejor comportamiento puesto que es el que da mejores resultados ante un error igual.
 
 ## e) (Bonus 1) Estimar el error de test de ambos modelos pero usando Validación Cruzada de 5-particiones. Comparar con los resulados obtenidos en el punto anterior.
 
@@ -195,46 +183,57 @@ Como podemos ver el error obtenido es menor que en los puntos anteriores, el tam
 
 ## f) (Bonus 2) Ajustar el mejor modelo de regresión posible considerando la variables mpg como salida y el resto como predictoras. Justificar el modelo ajustando en base al patrón de los residuos. Estimar su error de entrenamiento y de test.
 
+En primer lugar vamos a ver si hay algunar correlación entre las distintas variables que podemos emplear, para ello vamos a ajustar un modelo donde usamos las tres variables de forma independiente y otros tres donde las usamos correladas dos a dos, viendo cuál nos da mejor tasa de error, el error que vamos a medir, dado que estamos hablando de regresión será el error cuadrático medio, MSE:
+
 ```{r, echo=FALSE}
-R = lm(mpg ~ displacement + horsepower + weight, data = datos.train)
-prediccion = predict(R, newdata = datos.test, type = "response")
+R1 = lm(mpg ~ displacement + horsepower + weight, data = datos.train)
+prediccion = predict(R1, newdata = datos.test, type = "response")
 cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
 
-R = lm(mpg ~ displacement*weight, data = datos.train)
-prediccion = predict(R, newdata = datos.test, type = "response")
+R2 = lm(mpg ~ displacement*weight, data = datos.train)
+prediccion = predict(R2, newdata = datos.test, type = "response")
 cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
 
-R = lm(mpg ~ horsepower*displacement, data = datos.train)
-prediccion = predict(R, newdata = datos.test, type = "response")
+R3 = lm(mpg ~ horsepower*displacement, data = datos.train)
+prediccion = predict(R3, newdata = datos.test, type = "response")
 cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
 
-R = lm(mpg ~ horsepower*weight, data = datos.train)
-prediccion = predict(R, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
-
-R = lm(mpg ~ horsepower*weight + poly(displacement,2), data = datos.train)
-prediccion = predict(R, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
-
-R = lm(mpg ~ horsepower*weight + displacement, data = datos.train)
-prediccion = predict(R, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
-
-R = lm(mpg ~ horsepower*weight + poly(displacement,5), data = datos.train)
-prediccion = predict(R, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
-
-R = lm(mpg ~ poly(horsepower,2)+ poly(weight,2) + poly(displacement,2), data = datos.train)
-prediccion = predict(R, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
-
-R = lm(mpg ~ poly(horsepower,8)+ poly(weight,8) + poly(displacement,8), data = datos.train)
-prediccion = predict(R, newdata = datos.test, type = "response")
+R4 = lm(mpg ~ horsepower*weight, data = datos.train)
+prediccion = predict(R4, newdata = datos.test, type = "response")
 cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
 ```
-Con los primeros 4 experimentos vemos como hay una correlación entre las variables *horsepower* y *weight* ya que trabajando con ellas como variables correladas disminuimos el MSE. Ya habíamos hecho anteriormente el experimento usando polinomios cuadráticos para todas las variables viendo que el error bajaba y como podemos observar si usámos polinomios de grado 8 entonces el error sube, mostrando claramente sobreajuste.
 
-Finalmente nos decantamos por mantener estas dos variables correladas y usar tambien la variable *displacement* por medio de polinomios cuadráticos para bajar un poco el MSE, aunque realmente tener un modelo mas complejo para la mejora que supone no merece tanto la pena.
+Como podemos ver obtenemos mejor error cuando usamos las variables *horsepower* y *weight* correladas con lo que es lógico pensar que estas variables están estrechamente relacionadas y en consecuencia es mejor emplear un modelo donde esto se vea reflejado en la fórmula.
+
+Ahora bien tenemos una variable que no estamos usando, veamos qué ocurre si la incorporamos al modelo, la vamos a incorporar de dos modos, en primer lugar tal y como está y en segundo lugar por medio de un polinomio de grado 2:
+
+```{r}
+R5 = lm(mpg ~ horsepower*weight + displacement, data = datos.train)
+prediccion = predict(R5, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+
+R6 = lm(mpg ~ horsepower*weight + poly(displacement,2), data = datos.train)
+prediccion = predict(R6, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+```
+
+Como podemos ver el error es mejor cuando la incorporamos mediante un polinomio cuadrático, realmente ya habíamos hecho experimentos anteriormente y habíamos visto por medio del plot que facilita lm que los residuos parecían seguir una polinomial con lo que habíamos probado con usar todas las variables como polinomios como veremos más adelante. Con lo cual es un buen intento el usar un polinomio cuadrático como hemos visto.
+
+```{r}
+R7 = lm(mpg ~ horsepower*weight + poly(displacement,5), data = datos.train)
+prediccion = predict(R7, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+
+R8 = lm(mpg ~ poly(horsepower,2)+ poly(weight,2) + poly(displacement,2), data = datos.train)
+prediccion = predict(R8, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+
+R9 = lm(mpg ~ poly(horsepower,8)+ poly(weight,8) + poly(displacement,8), data = datos.train)
+prediccion = predict(R9, newdata = datos.test, type = "response")
+cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+```
+
+Aquí vemos otros experimentos donde observamos claramente el sobreajuste pues al aumentar el orden del polinomio en *displacement* a 5 así como usando todas las variables por medio de polinomio de grado 8 vemos como el error aumenta (en este ultimo caso con respecto a usar todas las variables con respecto a polinomios de grado 2). Finalmente si comparamos el modelo con correlación con el modelo con todas las variables de forma cuadrática e independiente vemos que el error es muy similar, siendo ligéramente mejor el que tiene las variables correladas con lo que nos quedaremos con este último.
 
 #Ejercicio 2 
 
@@ -270,8 +269,7 @@ lasso.coef = predict(out, type="coefficients",s=bestlam)
 umbral = 0.1
 var_seleccionadas = which(abs(lasso.coef) > umbral)[-1]
 
-
-
+#ajustamos el weight decay con las variables que han sido seleccionadas
 ridge.mod = glmnet(as.matrix(Boston[train, var_seleccionadas]), Boston[train,1], alpha = 0)
 ridge.pred = predict(ridge.mod, s=bestlam,newx = as.matrix(Boston[test, var_seleccionadas]))
 
@@ -279,13 +277,13 @@ error = sqrt(mean((Boston[test,1] - ridge.pred)^2)/(nrow(Boston[test,])-2))
 print(error)
 ```
 
-El error que calculamos es el RSE que es la raíz cuadrada del error cuadrático medio, a continuación mostramos una tabla con los distintos parámetros que hemos probado. Los parámetros que hemos ido modificando han sido el umbral que marca la selección de las características y el s para el weight decay, ya que aunque tenemos uno óptimo para el Lasso no tiene por qué ser el mismo para esta nueva regresión, aunque veremos que sí. En la siguiente tabla recogemos los parámetros junto con el RSE obtenido con ellos (para la partición 80-20 que hacemos de los datos con la semilla seleccionada):
+El error que calculamos es el RSE que es la raíz cuadrada del error cuadrático medio dividido por el número de muestras menos dos, a continuación mostramos una tabla con los distintos parámetros que hemos probado. Los parámetros que hemos ido modificando han sido el umbral que marca la selección de las características y el s para el weight decay, ya que aunque tenemos uno óptimo para el Lasso no tiene por qué ser el mismo para esta nueva regresión, aunque veremos que sí. En la siguiente tabla recogemos los parámetros junto con el RSE obtenido con ellos (para la partición 80-20 que hacemos de los datos con la semilla seleccionada):
 
 | umbral | s             | RSE        |
 |--------|---------------|------------|
 | 0.1    | bestlam       | 0.3129668  |
 | 0.1    | 100           | 0.4107367  |
-| 0.1    | 200000bestlam | 0.4865628  |
+| 0.1    | 200000bestlam | 0.4997857  |
 | 0      | bestlam       | 0.3206541  |
 | 0.45   | bestlam       | 0.3429374  |
 
@@ -298,26 +296,7 @@ Por tanto en mi opinión observamos underfitting cuando le damos demasiado peso 
 
 ##c) Definir una nueva variable con valores -1 y 1 usando el valor de la mediana de la variable crim como umbral. Ajustar un modelo SVM que prediga la nueva variable definida (usar el paquete e1071 de R). Describir con detalle cada uno de los pasos dados en el aprendizaje del modelo SVM. Comience ajustando un modelo lineal y argumente si considera necesario usar algún núcleo. Valorar el resultado del uso de distintos núcleos.
 
-Anteriormente ya hemos generado las muestras de entrenamiento y test, ahora vamos a tomar la mediana de los datos de entrenamiento (ya hemos dicho por qué esto se hace así) y luego a generar la variable que llamaremos, *crim1* a partir de ella:
-
-```{r}
-mediana = median(Boston[train,1])
-crim1.train = sapply(Boston[train,1], function(x) if (x < mediana) return(-1) else return(1))
-crim1.test = sapply(Boston[test,1], function(x) if (x < mediana) return(-1) else return(1))
-
-#generamos un dataframe con estos datos + la nueva var, quitando crim que no la emplearemos.
-data.train = data.frame(Boston[train,-1], crim1 = as.factor(crim1.train))
-data.test = data.frame(Boston[test, -1], crim1 = as.factor(crim1.test))
-```
-
-A continuación vamos a aplicar un modelo de SVM a los datos de entrenamiento, a priori el kernel que vamos a usar va a ser lineal. El principal problema que tenemos es que nuestros datos no tienen sólo dos propiedades con lo cual el hecho de hacer un plot de la clasificación dada (como se hace en el libro) no nos dirá qué tipo de núcleo obtener. Lo que vamos a hacer es usasr la función *pair* para ver si encontramos algún tipo de patrón:
-
-```{r}
-data.full = rbind(data.train, data.test)
-pairs(data.full)
-```
-
-Dado que es una clasificación binaria da la sensación de que el clasificador lineal va a ir, así que lo que vamos a hacer es entrenar un clasificador svm con cada uno de los núcleos disponibles y ver qué error fuera de la muestra obtenemos:
+A continuación vamos a aplicar modelos de SVM a los datos de entrenamiento. El principal problema que tenemos es que nuestros datos no tienen sólo dos propiedades con lo cual el hecho de hacer un plot de la clasificación dada (como se hace en el libro) no nos dirá qué tipo de núcleo usar. Vamos entonces a hacer 1000 submuestreos distintos de los datos y a obtener la media del error promedio de clasificación para ver qué kernel es el que mejor funciona:
 
 ```{r}
 set.seed(41192)
@@ -327,7 +306,8 @@ errS = 0
 errP = 0
 errR = 0
 
-for(i in seq(100)) {
+Nexp = 1000
+for(i in seq(Nexp)) {
   train = sample(1:nrow(Boston), nrow(Boston)*0.8)
   test = (-train)
   
@@ -356,35 +336,63 @@ for(i in seq(100)) {
   errP = errP + mean(svm.pred != data.test$crim1)
 }
 
-cat("Obtenemos en promedio un error medio con kernel lineal de:", errL/100, "\n")
-cat("Obtenemos en promedio un error medio con kernel sigmoidal de:", errS/100, "\n")
-cat("Obtenemos en promedio un error medio con kernel radial de:", errR/100, "\n")
-cat("Obtenemos en promedio un error medio con kernel polinomial de:", errP/100, "\n")
+cat("Obtenemos en promedio un error medio con kernel lineal de:", errL/Nexp, "\n")
+cat("Obtenemos en promedio un error medio con kernel sigmoidal de:", errS/Nexp, "\n")
+cat("Obtenemos en promedio un error medio con kernel radial de:", errR/Nexp, "\n")
+cat("Obtenemos en promedio un error medio con kernel polinomial de:", errP/Nexp, "\n")
 ```
-Por lo tanto el que mejor resultados da es el clasificador con un núcleo lineal como sospechábamos.
+Por lo tanto el que mejor resultados da es el clasificador con un núcleo lineal, seguido muy de cerca por el radial, pero como un clasificador lineal es lo más simple que podemos utilizar pues nos decantaremos por este. Al ser un modelo simple es menos sensible al sobreajuste por lo tanto si los datos de entrenamiento se han podido separar bien mediante él es lógico que su error de test (generalización) sea bueno.
 
-Como vemos consideramos todas las variables excepto la variable crim ya que esta es la que queremos predecir, con lo que estaríamos contaminando el aprendizaje. Indicar que como comentó la profesora no tenemos que usar solamente aquellas variables seleccionadas en apartados anteriores del ejercicio, sino que consideramos todas. Esto se debe a que según qué modelo de aprendizaje estemos empleando unas variables tendrán más importancia que otras; cada modelo tiene sus criterios y "preferencias", entonces a priori, sin un análisis más exhaustivo de los datos, no podemos descartar ninguna de las características.
+Como vemos consideramos todas las variables excepto la variable crim ya que esta es la que da la que queremos predecir, con lo que estaríamos contaminando el aprendizaje. Indicar que como comentó la profesora no tenemos que usar solamente aquellas variables seleccionadas en apartados anteriores del ejercicio, sino que consideramos todas. Esto se debe a que según qué modelo de aprendizaje estemos empleando unas variables tendrán más importancia que otras; cada modelo tiene sus criterios y "preferencias", entonces a priori, sin un análisis más exhaustivo de los datos, no podemos descartar ninguna de las características.
 
 ##Bonus 3 Estimar el error de entrenamiento y test por validación cruzada de 5 particiones.
 
+Vamos a estimar el error de entrenamiento y test tanto para regresión con weight decay como para el SVM con núcleo lineal.
+
 ```{r}
+set.seed(41192)
 mediana = median(Boston$crim)
 crim1 = sapply(Boston$crim, function(x) if (x < mediana) return(-1) else return(1))
 data.full = data.frame(Boston[,-1], crim1 = as.factor(crim1))
 
 folds = kfold(Boston, k = 5)
+
+
+#Para regresión con weight decay
+err.in = 0
+err.out = 0
+
+for (i in seq(5)) {
+  out = glmnet(as.matrix(Boston[folds != i,-1]),Boston[folds != i,1], alpha = 1)
+  lasso.coef = predict(out, type="coefficients",s=bestlam)
+  
+  umbral = 0.1
+  var_seleccionadas = which(abs(lasso.coef) > umbral)[-1]
+  
+  ridge.mod = glmnet(as.matrix(Boston[folds != i, var_seleccionadas]), Boston[folds != i,1], alpha = 0)
+  ridge.pred.train = predict(ridge.mod, s=bestlam,newx = as.matrix(Boston[folds != i, var_seleccionadas]))
+  ridge.pred.test = predict(ridge.mod, s=bestlam,newx = as.matrix(Boston[folds == i, var_seleccionadas]))
+  
+  err.in = err.in + mean((Boston[folds != i,1] - ridge.pred.train)^2)
+  err.out = err.out + mean((Boston[folds == i,1] - ridge.pred.test)^2)
+}
+
+cat("El MSE de train estimado por CV para regresión es: ", err.in/5, ".\n")
+cat("El MSE de test estimado por CV para regresión es: ", err.out/5, ".\n")
+#Para el de SVM
+
 err.in = 0
 err.out = 0
 
 for (i in seq(5)) {
   svmfit = svm(crim1 ~ ., data=data.full[folds != i,], kernel = "linear")
-  err.in = err.in + sum(svmfit$fitted != data.full[folds != i,]$crim1)
+  err.in = err.in + mean(svmfit$fitted != data.full[folds != i,]$crim1)
   pred = predict(svmfit, newdata = data.full[folds == i,])
-  err.out = err.out + sum(pred != data.full[folds == i,]$crim1)
+  err.out = err.out + mean(pred != data.full[folds == i,]$crim1)
 }
 
-cat("El error de train estimados por CV es: ", err.in/5, ".\n")
-cat("El error de test estimados por CV es: ", err.out/5, ".\n")
+cat("El error de train estimado por CV para SVM es: ", err.in/5, ".\n")
+cat("El error de test estimado por CV para SVM es: ", err.out/5, ".\n")
 ```
 
 # Ejercicio 3
@@ -422,7 +430,8 @@ Para obtener una aproximación del número de árboles necesario lo que vamos a 
 set.seed(41192)
 #empleamos CV para estimar el mtray óptimo
 randomfcv = rfcv(Boston[,1:13], Boston$medv)
-
+print(randomfcv$n.var)
+print(randomfcv$error.cv)
 #entonces voy a usar mtray = 6 orque es el que menos MSE da quitando el 13 que sería hacer el bagging
 
 #vamos a obtener una estimación del número de árboles necesarios
@@ -454,9 +463,9 @@ pred = predict(rf, newdata = Boston[test,])
 cat("El MSE con rf con opt árboles es: ", mean((pred - Boston[test,]$medv)^2), "\n")
 ```
 
-Por lo tanto como podemos comprobar el error con random forest es algo menor que con bagging pero no demasiado, con lo cual podemos pensar en dos cosas: lo primero es que quizás todas las variables no sean relevante para la clasficación e incluso que introduzcan ruido en ésta, en segundo lugar vemos como el random forest con un procedimiento que será más eficiente, al emplear menos variables, obtiene un mejor resultado. Por lo tanto se pone de relieve como una buena seleccion de variables es muy importante. Además ha habido una ocasión en la cual el error con random forest ha sido incluso menor, pero ahora con esta semilla los resultados son estos. Esto es usando el mismo número de árboles que el empleado en bagging.
+Por lo tanto como podemos comprobar el error con random forest es algo menor que con bagging pero no demasiado, con lo cual podemos pensar en dos cosas: lo primero es que quizás todas las variables no sean relevante para la clasficación e incluso que introduzcan ruido en ésta, en segundo lugar vemos como el random forest con un procedimiento que será más eficiente, al emplear menos variables, obtiene un mejor resultado. Por lo tanto se pone de relieve cómo una buena seleccion de variables es muy importante. Además ha habido una ocasión en la cual el error con random forest ha sido incluso menor, pero ahora con esta semilla los resultados son estos. Esto es usando el mismo número de árboles que el empleado en bagging.
 
-Ahora bien, si usamos el número de árboles que parece ser el óptimo, 300, el error aumenta. Ahora bien dado que este óptimo ha sido obtenido mediante un procedimiento de CV entonces nos quedaríamos en la práctica con él ya que teóricamente tendrá una mejor generalización pese a que para esta muestra concreta el error aumente.
+Ahora bien, si usamos el número de árboles que parece ser el óptimo, 300, el error aumenta. Pero dado que este óptimo ha sido obtenido mediante un procedimiento de CV entonces nos quedaríamos en la práctica con él ya que teóricamente tendrá una mejor generalización pese a que para esta muestra concreta el error aumente.
 
 ##4. Ajustar un modelo de regresión usando Boosting (usar gbm con distribution = 'gaussian'). Calcular el error de test y compararlo con el obtenido con bagging y Random Forest.
 
@@ -494,11 +503,11 @@ tree.OJ = tree(Purchase ~ ., OJ[train, ])
 summary(tree.OJ)
 ```
 
-Lo primero que observamos es que de las 17 variables con las que podría trabajar el árbol para realizar la clasificacion realmente solo usa 3: *LoyalCH*, *PriceDiff* y *ListPriceDiff*. Por lo tanto o bien estas características no aportan ninguna información relevante o la información que aportan estas tres es suficiente.
+Lo primero que observamos es que de las 17 variables con las que podría trabajar el árbol para realizar la clasificacion realmente solo usa 3: *LoyalCH*, *PriceDiff* y *ListPriceDiff*. Por lo tanto o bien el resto de características no aportan ninguna información relevante o la información que aportan estas tres es suficiente.
 
 Tenemos que hay 8 nodos terminales por lo tanto en base a las variables anteriormente mencionadas se hacen 8 particiones de los datos a partir de las cuales podemos saber cuál de los dos valores posibles de *Purchase* toma cada objeto de los datos de training en teoría.
 
-Tenemos que se clasifican mal 116 elementos de los 800 por lo tanto aunque el algoritmo ha considerado que no necesita dividir más los datos, quizás porque sus medidas le han dicho que ya no va a obtener nueva información, todos los datos no han sido bien clasificados; hay datos que han "caído" en particiones donde la clase mayoritaria de *Purchase* no era la suya.
+Tenemos que se clasifican mal 116 elementos de los 800 por lo tanto aunque el algoritmo ha considerado que no necesita dividir más los datos, quizás porque sus medidas le han dicho que ya no va a obtener nueva información, todos los datos no han sido bien clasificados; hay datos que "han caído" en particiones donde la clase mayoritaria de *Purchase* no era la suya.
 
 La desviación media se obtiene dividiendo por el número de total de muestras menos el número de nodos final la siguiente cantidadad:
 
@@ -523,6 +532,9 @@ En la otra rama del árbol cuando el valor de *LoyalHC* está por encima de 0.50
 predOJ = predict(tree.OJ, OJ[test, ], type="class")
 table(predOJ, OJ[test,]$Purchase)
 ```
+
+Como vemos de los que se clasifican como CH hay 137 correctos y 40 incorrectos. Del mismo modo de los que se clasifican como MM hay 20 incorrectos y 73 que sí que pertenecen a esta clase.
+
 La tasa de error de test es $\dfrac{40+20}{270} = 0.222222$.
 
 La precisión es $\dfrac{137}{137+40} = 0.774011$
