@@ -1,0 +1,72 @@
+---
+title: \textbf{Proyecto Final. Cardiotocography}
+author: "Anabel Gómez Ríos y Gustavo Rivas Gervilla"
+date: "16 de junio de 2016"
+output: pdf_document
+---
+
+```{r}
+library(caret)
+```
+
+
+#1. Definición del problema a resolver y enfoque elegido.
+
+En este proyecto vamos a trabajar con una base da datos algo mayor que las que hemos venido usando en las prácticas (2126 instancias con 23 atributos cada una) con el objetivo de poner en práctica los conocimientos adquiridos en la asignatura para resolver un problema de clasificación del mundo real.
+  
+La base de datos elegida es Cardiotocography del respositorio de bases de datos UCI la cual la podemos descargar \href{https://archive.ics.uci.edu/ml/datasets/Cardiotocography#}{\textbf{aquí}}. En esta base de datos se recogen distintas características de cardiotrogafías en las cuales se mide la frencuencia cardiaca fetal (FHR), los movimiento fetales (FM) y las contracciones uterinas (UC), obteniendo las siguientes características a partir de estos datos:
+
+\begin{enumerate}
+\item LB: punto de referencia del FHR en pulsaciones por minuto.
+\item AC: aceleraciones del pulso por segundo.
+\item FM: movimientos fetales por segundo.
+\item UC: contracciones uterinas por segundo.
+\item DL: deceleraciones suaves por segundo.
+\item DS: deceleraciones fuertes por segundo.
+\item DP: deceleraciones prolongadas por segundo.
+\item ASTV: porcentaje de tiempo con variaciones anormales cortas del pulso.
+\item MSTV: media de las variaciones anormales cortas del pulso.
+\item ALTV: porcentaje de tiempo con variaciones anormales largas del pulso.
+\item MLTV: media de las variaciones anormales largas del pulso.
+\item Width: amplitud del histograma FHR.
+\item Min: mínimo del histograma FHR.
+\item Max: máximo del hisotograma FHR.
+\item Nmax: número de picos en el histograma.
+\item Nzeros: número de ceros en el histograma.
+\item Mode: moda del histograma.
+\item Mean: media del histograma.
+\item Median: mediana del histograma.
+\item Variance: varianza del histograma.
+\item Tendency: tendencia del histograma.
+\item CLASS: código del tipo de patrón del histograma FHR [1-10].
+\item NSP: código del estado fetal. [1: Normal, 2: Sospechoso y 3: Patológico]
+\end{enumerate}
+
+Lo que queremos es emplear estos datos para poder predecir ante una nueva cardiotocografía si el estado del feto es normal, sospecho o patológico, es decir, vamos a predecir la variable NSP con el resto.
+
+```{r}
+datos <- read.csv("/media/griger/USB20FD/AA/datos.csv")
+```
+#2. Codificación de los datos de entranda para hacerlos útiles a los algoritmos.
+
+Nuestra base de datos estaba contenida en una hoja de cálculo. Para poder usarla dentro de R lo que hemos hecho es generar un CSV con los datos previamente formateados puesto que hemos tenido que cambiar el formato decimal de algunas columnas para que fuese el que emplea R. Además en el fichero original aparecían más variables como la fehca y el tiempo de inicio y fin de la cardiotocografía las cuales no hemos considerado relevantes para el estudio por lo que no están presententes en el CSV.
+
+#3. Valoración del interés de las variables para el problema y selección de un subconjunto en su caso.
+
+En primer lugar tenemos que `Width` se calcula como la diferencia entre `Max` y `Min` con lo cual suponemos que una de las tres no tendrán relevancia ya que la información aportada por ella se puede deducir de las otras dos.
+
+Para el resto de variables dado el poco conocimiento que tenemos en la materia no podemos saber qué factores son los que más influyen en determinar el estado del feto por tanto hemos decidido realizar un análisis de componentes principales para ver si podemos reducir el número de variables a considerar, haciendo que los algoritmos sean más eficientes en tiempo. La técnica que hemos usado en clase para tal propósito ha sido emplear el Lasso para obtener aquellas variables que sus coeficientes estuviesen por encima de un cierto umbral determinado por nosotros. Esto precisamente es lo que nos ha llevado a decantarnos por el PCA ya que con él podemos saber el conjunto de variables que son capaces de explicar al menos 95% de la variabilidad de los datos (aunque podemos cambiar este 95% y aumentarlo para que sea más estricto). Para saber cómo emplear PCA en R hemos consultado el enlace [2].
+
+Lo primero que vamos a hacer es separar los datos en las muestras de entrenamiento y test (80-20) que emplearemos a lo largo de todo el estudio. En esta ocasión como la variable a predecir no depende de la media de otras variables entonces vamos a poder realizar un particionado homogéneo de los datos para tener una distribución de las clases de cada muestra lo más uniforme posible (no corremos el riesgo de contaminar la variable con datos de test como un ocurría en prácticas).
+
+```{r}
+
+```
+
+
+# Bibliografía
+
+\begin{enumerate}
+\item La base de datos: \url{https://archive.ics.uci.edu/ml/datasets/Cardiotocography#}
+\item PCA con R: \url{http://www.r-bloggers.com/computing-and-visualizing-pca-in-r/}
+\end{enumerate}
