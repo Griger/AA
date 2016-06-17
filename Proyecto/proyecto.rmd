@@ -1,20 +1,20 @@
 ---
 title: \textbf{Proyecto Final. Cardiotocography}
-author: "Anabel GÃ³mez RÃ­os y Gustavo Rivas Gervilla"
+author: "Anabel Gómez Ríos y Gustavo Rivas Gervilla"
 date: "16 de junio de 2016"
 output: pdf_document
 ---
 
 ```{r}
-library(caret)
+library(caret) # para qué?
 ```
 
 
-#1. DefiniciÃ³n del problema a resolver y enfoque elegido.
+#1. Definición del problema a resolver y enfoque elegido.
 
-En este proyecto vamos a trabajar con una base da datos algo mayor que las que hemos venido usando en las prÃ¡cticas (2126 instancias con 23 atributos cada una) con el objetivo de poner en prÃ¡ctica los conocimientos adquiridos en la asignatura para resolver un problema de clasificaciÃ³n del mundo real.
+En este proyecto vamos a trabajar con una base da datos algo mayor que las que hemos venido usando en las prácticas (2126 instancias con 23 atributos cada una) con el objetivo de poner en práctica los conocimientos adquiridos en la asignatura para resolver un problema de clasificación del mundo real.
   
-La base de datos elegida es Cardiotocography del respositorio de bases de datos UCI la cual la podemos descargar \href{https://archive.ics.uci.edu/ml/datasets/Cardiotocography#}{\textbf{aquÃ­}}. En esta base de datos se recogen distintas caracterÃ­sticas de cardiotrogafÃ­as en las cuales se mide la frencuencia cardiaca fetal (FHR), los movimiento fetales (FM) y las contracciones uterinas (UC), obteniendo las siguientes caracterÃ­sticas a partir de estos datos:
+La base de datos elegida es Cardiotocography del respositorio de bases de datos UCI la cual la podemos descargar \href{https://archive.ics.uci.edu/ml/datasets/Cardiotocography#}{\textbf{aquí}}. En esta base de datos se recogen distintas características de cardiotrogafías en las cuales se mide la frencuencia cardiaca fetal (FHR), los movimiento fetales (FM) y las contracciones uterinas (UC), obteniendo las siguientes características a partir de estos datos:
 
 \begin{enumerate}
 \item LB: punto de referencia del FHR en pulsaciones por minuto.
@@ -29,44 +29,124 @@ La base de datos elegida es Cardiotocography del respositorio de bases de datos 
 \item ALTV: porcentaje de tiempo con variaciones anormales largas del pulso.
 \item MLTV: media de las variaciones anormales largas del pulso.
 \item Width: amplitud del histograma FHR.
-\item Min: mÃ­nimo del histograma FHR.
-\item Max: mÃ¡ximo del hisotograma FHR.
-\item Nmax: nÃºmero de picos en el histograma.
-\item Nzeros: nÃºmero de ceros en el histograma.
+\item Min: mínimo del histograma FHR.
+\item Max: máximo del hisotograma FHR.
+\item Nmax: número de picos en el histograma.
+\item Nzeros: número de ceros en el histograma.
 \item Mode: moda del histograma.
 \item Mean: media del histograma.
 \item Median: mediana del histograma.
 \item Variance: varianza del histograma.
 \item Tendency: tendencia del histograma.
-\item CLASS: cÃ³digo del tipo de patrÃ³n del histograma FHR [1-10].
-\item NSP: cÃ³digo del estado fetal. [1: Normal, 2: Sospechoso y 3: PatolÃ³gico]
+\item CLASS: código del tipo de patrón del histograma FHR [1-10].
+\item NSP: código del estado fetal. [1: Normal, 2: Sospechoso y 3: Patológico]
 \end{enumerate}
 
-Lo que queremos es emplear estos datos para poder predecir ante una nueva cardiotocografÃ­a si el estado del feto es normal, sospecho o patolÃ³gico, es decir, vamos a predecir la variable NSP con el resto.
+Lo que queremos es emplear estos datos para poder predecir ante una nueva cardiotocografía si el estado del feto es normal, sospecho o patológico, es decir, vamos a predecir la variable NSP con el resto. Además, vamos a hacer la clasificación también según la variable CLASS, puesto que también es una de las "preguntas" en la base de datos.  
+
+El enfoque elegido por tanto es hacer clasificación multiclase para clasificar nuevos datos según dos variables (por separado), una que tiene 3 clases y otra que tiene 10.
 
 ```{r}
-datos <- read.csv("/media/griger/USB20FD/AA/datos.csv")
+datos <- read.csv("datos.csv")
 ```
-#2. CodificaciÃ³n de los datos de entranda para hacerlos Ãºtiles a los algoritmos.
 
-Nuestra base de datos estaba contenida en una hoja de cÃ¡lculo. Para poder usarla dentro de R lo que hemos hecho es generar un CSV con los datos previamente formateados puesto que hemos tenido que cambiar el formato decimal de algunas columnas para que fuese el que emplea R. AdemÃ¡s en el fichero original aparecÃ­an mÃ¡s variables como la fehca y el tiempo de inicio y fin de la cardiotocografÃ­a las cuales no hemos considerado relevantes para el estudio por lo que no estÃ¡n presententes en el CSV.
+#2. Codificación de los datos de entranda para hacerlos útiles a los algoritmos.
 
-#3. ValoraciÃ³n del interÃ©s de las variables para el problema y selecciÃ³n de un subconjunto en su caso.
+Nuestra base de datos estaba contenida en una hoja de cálculo. Para poder usarla dentro de R lo que hemos hecho es generar un CSV con los datos previamente formateados puesto que hemos tenido que cambiar el formato decimal de algunas columnas para que fuese el que emplea R. Además en el fichero original aparecían más variables como la fehca y el tiempo de inicio y fin de la cardiotocografía las cuales no hemos considerado relevantes para el estudio por lo que no están presententes en el CSV.
 
-En primer lugar tenemos que `Width` se calcula como la diferencia entre `Max` y `Min` con lo cual suponemos que una de las tres no tendrÃ¡n relevancia ya que la informaciÃ³n aportada por ella se puede deducir de las otras dos.
+#3. Valoración del interés de las variables para el problema y selección de un subconjunto en su caso.
 
-Para el resto de variables dado el poco conocimiento que tenemos en la materia no podemos saber quÃ© factores son los que mÃ¡s influyen en determinar el estado del feto por tanto hemos decidido realizar un anÃ¡lisis de componentes principales para ver si podemos reducir el nÃºmero de variables a considerar, haciendo que los algoritmos sean mÃ¡s eficientes en tiempo. La tÃ©cnica que hemos usado en clase para tal propÃ³sito ha sido emplear el Lasso para obtener aquellas variables que sus coeficientes estuviesen por encima de un cierto umbral determinado por nosotros. Esto precisamente es lo que nos ha llevado a decantarnos por el PCA ya que con Ã©l podemos saber el conjunto de variables que son capaces de explicar al menos 95% de la variabilidad de los datos (aunque podemos cambiar este 95% y aumentarlo para que sea mÃ¡s estricto). Para saber cÃ³mo emplear PCA en R hemos consultado el enlace [2].
+En primer lugar tenemos que `Width` se calcula como la diferencia entre `Max` y `Min` con lo cual suponemos que una de las tres no tendrán relevancia ya que la información aportada por ella se puede deducir de las otras dos.  
 
-Lo primero que vamos a hacer es separar los datos en las muestras de entrenamiento y test (80-20) que emplearemos a lo largo de todo el estudio. En esta ocasiÃ³n como la variable a predecir no depende de la media de otras variables entonces vamos a poder realizar un particionado homogÃ©neo de los datos para tener una distribuciÃ³n de las clases de cada muestra lo mÃ¡s uniforme posible (no corremos el riesgo de contaminar la variable con datos de test como un ocurrÃ­a en prÃ¡cticas).
+Para el resto de variables dado el poco conocimiento que tenemos en la materia no podemos saber qué factores son los que más influyen en determinar el estado del feto por tanto hemos decidido realizar un análisis de componentes principales para ver si podemos reducir el número de variables a considerar, haciendo que los algoritmos sean mÃ¡s eficientes en tiempo. La técnica que hemos usado en clase para tal propósito ha sido emplear el Lasso para obtener aquellas variables que sus coeficientes estuviesen por encima de un cierto umbral determinado por nosotros. Esto precisamente es lo que nos ha llevado a decantarnos por el PCA ya que con él podemos saber el conjunto de variables que son capaces de explicar al menos 95% de la variabilidad de los datos (aunque podemos cambiar este 95% y aumentarlo para que sea más estricto). Para saber cómo emplear PCA en R hemos consultado el enlace [2] de la bibliografía.  
+
+Lo primero que vamos a hacer es separar los datos en las muestras de entrenamiento y test (80-20) que emplearemos a lo largo de todo el estudio. En esta ocasión como la variable a predecir no depende de la media de otras variables entonces vamos a poder realizar un particionado homogéneo de los datos para tener una distribución de las clases de cada muestra lo más uniforme posible (no corremos el riesgo de contaminar la variable con datos de test como un ocurría en prácticas).  
 
 ```{r}
+# Cogemos los índices del 80% de los datos para cada clase
+train_idx <- c(sample(which(datos$NSP == 1), size =
+                        ceiling(0.8*sum(datos$NSP==1))),
+               sample(which(datos$NSP == 2), size =
+                        ceiling(0.8*sum(datos$NSP==2))),
+               sample(which(datos$NSP == 3), size =
+                        ceiling(0.8*sum(datos$NSP==3))))
 
+# Hacemos el conjunto de train con estos índices
+train <- datos[train_idx,]
+# Hacemos el conjunto de test con todas aquellas variables que no tengan estos
+# índices
+test <- datos[-train_idx,]
+```
+
+Ahora vamos a quitar las variables `NSP` y `CLASS` de `train` y test, ya que son las salidas, y las vamos a guardar en dos vectores aparte.
+
+```{r}
+NSP.train <- train$NSP
+CLASS.train <- train$CLASS
+train <- train[,-c(22,23)]
+NSP.test <- test$NSP
+CLASS.test <- test$CLASS
+test <- test[,-c(22,23)]
 ```
 
 
-# BibliografÃ­a
+Vamos a hacer un `summary` sobre los datos de `train` para ver si podemos descartar alguna variable que a simple vista se vea que no va a aportar nada.
+
+```{r}
+summary(train)
+```
+
+Como vemos, la variable DS tiene máximo y mínimo 0, con lo que es igual a 0 para todas las variables y por tanto no van a infuir para nuestro análisis en el conjunto de train. Lo que hacemos por tanto es quitarla de dicho conjunto.
+
+```{r}
+# Quitamos la variable DS, que ocupa la sexta columna
+train <- train[,-6]
+test <- test[,-6] # ESTO NO SABEMOS SI SE PUEDE HACER
+```
+
+Como hemos podido ver hay muchas que tienen valores cercanos a cero, pero sobre estos no podemos decir nada en claro, así que vamos a pasar a utilizar el algoritmo PCA. Para ello vamos a utilizar la función `prcomp` del paquete `stats` instalado por defecto en `R`.
+
+AQUÍ HAY QUE EXPLICAR POR QUÉ HAY QUE ESCALAR Y CENTRAR POR TEMAS.
+
+```{r}
+pca.out <- prcomp(train, center = TRUE, scale = TRUE)
+```
+
+VENDER HUMO
+
+```{r}
+biplot(pca.out, scale = 0)
+plot(pca.out, main="PCA")
+summary(pca.out)
+```
+
+Como podemos ver con `summary()`, con las 14 primeras componentes principales estamos explicando un 96% de los datos, y son con las que nos vamos a quedar para hacer el estudio reducido y ver si hay mejora al utilizar PCA. Vamos a hacer entonces la combinación lineal que nos da PCA para obtener el nuevo conjunto de train:
+
+```{r}
+trainPCA <- apply(pca.out$rotation, 2, function(x) {
+  apply(train, 1, function(y) {
+    x%*%y
+  })
+})
+```
+
+Vamos a hacerle la combinación lineal al conjunto de test también con las componentes principales de train:
+
+```{r}
+testPCA <- apply(pca.out$rotation, 2, function(x) {
+  apply(test, 1, function(y) {
+    x%*%y
+  })
+})
+```
+
+
+
+
+# Bibliografía
 
 \begin{enumerate}
 \item La base de datos: \url{https://archive.ics.uci.edu/ml/datasets/Cardiotocography#}
-\item PCA con R: \url{http://www.r-bloggers.com/computing-and-visualizing-pca-in-r/}
+\item PCA con `R`: \url{http://www.r-bloggers.com/computing-and-visualizing-pca-in-r/}
+\item Partición de los datos: \href{http://stackoverflow.com/questions/13536537/partitioning-data-set-in-r-based-on-multiple-classes-of-observations}{http://stackoverflow.com/questions/...}
 \end{enumerate}
