@@ -7,6 +7,7 @@ output: pdf_document
 
 ```{r}
 library(caret) # para qué?
+library(glmnet)
 ```
 
 
@@ -78,15 +79,49 @@ train <- datos[train_idx,]
 test <- datos[-train_idx,]
 ```
 
+```{r}
+# Cogemos los índices del 80% de los datos para cada clase
+train_idx <- c(sample(which(datos$CLASS == 1), size =
+                        ceiling(0.8*sum(datos$CLASS==1))),
+               sample(which(datos$CLASS == 2), size =
+                        ceiling(0.8*sum(datos$CLASS==2))),
+               sample(which(datos$CLASS == 3), size =
+                        ceiling(0.8*sum(datos$CLASS==3))),
+               sample(which(datos$CLASS == 4), size =
+                        ceiling(0.8*sum(datos$CLASS==4))),
+               sample(which(datos$CLASS == 5), size =
+                        ceiling(0.8*sum(datos$CLASS==5))),
+               sample(which(datos$CLASS == 6), size =
+                        ceiling(0.8*sum(datos$CLASS==6))),
+               sample(which(datos$CLASS == 7), size =
+                        ceiling(0.8*sum(datos$CLASS==7))),
+               sample(which(datos$CLASS == 8), size =
+                        ceiling(0.8*sum(datos$CLASS==8))),
+               sample(which(datos$CLASS == 9), size =
+                        ceiling(0.8*sum(datos$CLASS==9))),
+               sample(which(datos$CLASS == 10), size =
+                        ceiling(0.8*sum(datos$CLASS==10))))
+
+# Hacemos el conjunto de train con estos índices
+train10 <- datos[train_idx,]
+# Hacemos el conjunto de test con todas aquellas variables que no tengan estos
+# índices
+test10 <- datos[-train_idx,]
+```
+
+
 Ahora vamos a quitar las variables `NSP` y `CLASS` de `train` y test, ya que son las salidas, y las vamos a guardar en dos vectores aparte.
 
 ```{r}
 NSP.train <- train$NSP
-CLASS.train <- train$CLASS
 train <- train[,-c(22,23)]
 NSP.test <- test$NSP
-CLASS.test <- test$CLASS
 test <- test[,-c(22,23)]
+
+CLASS.train <- train10$CLASS
+train10 <- train10[,-c(22,23)]
+CLASS.test <- test10$CLASS
+test10 <- test10[,-c(22,23)]
 ```
 
 
@@ -94,6 +129,7 @@ Vamos a hacer un `summary` sobre los datos de `train` para ver si podemos descar
 
 ```{r}
 summary(train)
+summary(train10)
 ```
 
 Como vemos, la variable DS tiene máximo y mínimo 0, con lo que es igual a 0 para todas las variables y por tanto no van a infuir para nuestro análisis en el conjunto de train. Lo que hacemos por tanto es quitarla de dicho conjunto.
@@ -102,6 +138,8 @@ Como vemos, la variable DS tiene máximo y mínimo 0, con lo que es igual a 0 para
 # Quitamos la variable DS, que ocupa la sexta columna
 train <- train[,-6]
 test <- test[,-6] # ESTO NO SABEMOS SI SE PUEDE HACER
+train10 <- train10[,-6]
+test10 <- test10[,-6]
 ```
 
 Como hemos podido ver hay muchas que tienen valores cercanos a cero, pero sobre estos no podemos decir nada en claro, así que vamos a pasar a utilizar el algoritmo PCA. Para ello vamos a utilizar la función `prcomp` del paquete `stats` instalado por defecto en `R`.
@@ -110,6 +148,7 @@ AQUÍ HAY QUE EXPLICAR POR QUÉ HAY QUE ESCALAR Y CENTRAR POR TEMAS.
 
 ```{r}
 pca.out <- prcomp(train, center = TRUE, scale = TRUE)
+pca.out10 <- prcomp(train10, center = TRUE, scale = TRUE)
 ```
 
 VENDER HUMO
@@ -128,6 +167,12 @@ trainPCA <- apply(pca.out$rotation, 2, function(x) {
     x%*%y
   })
 })
+
+trainPCA10 <- apply(pca.out10$rotation, 2, function(x) {
+  apply(train10, 1, function(y) {
+    x%*%y
+  })
+})
 ```
 
 Vamos a hacerle la combinación lineal al conjunto de test también con las componentes principales de train:
@@ -138,8 +183,107 @@ testPCA <- apply(pca.out$rotation, 2, function(x) {
     x%*%y
   })
 })
+
+
+testPCA10 <- apply(pca.out10$rotation, 2, function(x) {
+  apply(test10, 1, function(y) {
+    x%*%y
+  })
+})
 ```
 
+#4. Normalización de las variables (en su caso).
+
+En el caso de modelos de aprendizaje que trabajan por similaridad, es decir, por distancia entre las muestras para asignar una clase a un dato (como son el KNN y las funciones de base radial) es conveniente normalizar las características de modo que evitemos que unas tengan más peso que otras en las decisiones del modelo, debido a las diferencias de magnitud.
+
+Entonces vamos a normalizar las variables antes de aplicar ningún modelo de aprendizaje para así trabajar con los mismos datos. Entonces vamos a proceder a normalizar los datos, para ello igual que hemos hecho en prácticas anteriores vamos a normalizar los datos de train y empleando los factores de normalización de dicho proceso normalizaremos los de test. De este modo no vamos a contaminar los datos de entrenamiento con información sobre los de test, asegurando que el proceso de aprendizaje se adecuado.
+
+```{r}
+train <- scale(train)
+medias <- attr(train, "scaled:center")
+escalados <- attr(train, "scaled:scale")
+test <- scale(test, medias, escalados)
+
+trainPCA <- scale(trainPCA)
+medias <- attr(trainPCA, "scaled:center")
+escalados <- attr(trainPCA, "scaled:scale")
+testPCA <- scale(testPCA, medias, escalados)
+```
+
+```{r}
+train10 <- scale(train10)
+medias <- attr(train10, "scaled:center")
+escalados <- attr(train10, "scaled:scale")
+test10 <- scale(test10, medias, escalados)
+
+trainPCA10 <- scale(trainPCA10)
+medias <- attr(trainPCA10, "scaled:center")
+escalados <- attr(trainPCA10, "scaled:scale")
+testPCA10 <- scale(testPCA10, medias, escalados)
+```
+
+
+#5. Selección de las técnicas y valoración de la idoneidad de las mismas frente a otras alternativas.
+
+Es claro que no podemos plantearnos usar el perceptron ya que de inicio estamos antes un problema de clasifación no binaria con lo que no vamos a poder realizar una buena clasificación por medio de él.
+
+De entre los modelos paramétricos que hemos visto en la asignatura nos vamos a decantar por la regresión logística multinomial. Podríamos haber considerado el SVM de núcleo lineal pero no conocemos la naturaleza de los datos, con lo cual no tenemos seguridad de vayan a ser linealmente separables, entonces preferimos considerar un modelo el cual no dependa de la disposición espacial de los datos como es la regresión logística.
+
+Por otro lado las funciones de base radial paramétricas no nos parecen una buena opción ya que dependen fuertemente de cómo estén distribuidos los datos, es decir, les ocurre como al KNN; si tenemos puntos próximos al punto a etiquetar de clase distinta a la real del punto entonces la clasificación no será buena. En cambio pensamos que dado que la regresión logística nos da una visión probabilística del etiquetado será más robusta a estas situaciones.
+
+A continuación vamos a explicar cómo funciona la regresion logística multinomial:
+
+
+#6. Aplicación de las técnicas especificando claramente qué algoritmos se usan en la estimación de los parámetros, los hiperparámetros y el error de generalización.
+
+CON PCA:
+
+```{r}
+set.seed(1)
+cv.fit <- cv.glmnet(as.matrix(trainPCA), NSP.train, alpha = 0, 
+                    family = "multinomial")
+lambda <- cv.fit$lambda.min
+modeloPCA3 <- glmnet(as.matrix(trainPCA), NSP.train, alpha = 0, 
+                     family = "multinomial", lambda = lambda)
+predicciones <- predict(modeloPCA3, s=lambda, newx = testPCA, type="response")
+```
+
+Esto devuelve para cada nuevo dato la probabilidad de que pertenezca a cada clase. Lo que vamos a hacer ahora es quedarnos con aquella clase a la que corresponda la máxima probabilidad y devolver dicha clase.
+
+```{r}
+data <- as.matrix(data.frame(predicciones))
+clases.predichas <- apply(data, 1, function(x) {
+  which.max(x)
+})
+```
+
+Vamos a ver ahora prediciendo con 10 clases:
+
+```{r}
+set.seed(1)
+cv.fit <- cv.glmnet(as.matrix(trainPCA10), CLASS.train, alpha = 0, 
+                    family = "multinomial")
+lambda <- cv.fit$lambda.min
+modeloPCA10 <- glmnet(as.matrix(trainPCA10), CLASS.train, alpha = 0, 
+                     family = "multinomial", lambda = lambda)
+predicciones <- predict(modeloPCA10, s=lambda, newx = testPCA10, type="response")
+data <- as.matrix(data.frame(predicciones))
+clases.predichas10 <- apply(data, 1, function(x) {
+  which.max(x)
+})
+```
+
+
+
+SIN PCA:
+
+#7. Argumentar sobre la idoneidad de la función regularización usada (en su caso).
+
+
+#8. Valoración de los resultados (gráficas, métricas de error, análisis de residuos, etc.)
+
+
+#9. Justificar que se ha obtenido la mejor de las posibles soluciones con la técnica elegida y la muestra dada. Argumentar en términos de la dimensión VC del modelo, el error de generalización y las curvas de aprendizaje.
 
 
 
