@@ -64,6 +64,7 @@ Para el resto de variables dado el poco conocimiento que tenemos en la materia n
 Lo primero que vamos a hacer es separar los datos en las muestras de entrenamiento y test (80-20) que emplearemos a lo largo de todo el estudio. En esta ocasión como la variable a predecir no depende de la media de otras variables entonces vamos a poder realizar un particionado homogéneo de los datos para tener una distribución de las clases de cada muestra lo más uniforme posible (no corremos el riesgo de contaminar la variable con datos de test como un ocurría en prácticas).  
 
 ```{r}
+set.seed(1)
 # Cogemos los índices del 80% de los datos para cada clase
 train_idx <- c(sample(which(datos$NSP == 1), size =
                         ceiling(0.8*sum(datos$NSP==1))),
@@ -80,7 +81,13 @@ test <- datos[-train_idx,]
 ```
 
 ```{r}
+set.seed(1)
+#datos$CLASS = sample(seq(1,10), length(datos$CLASS), replace = T)
+datos$CLASS = datos$NSP
+#datos$CLASS = sample(seq(1,10), length(datos$CLASS), replace = T)
+set.seed(1)
 # Cogemos los índices del 80% de los datos para cada clase
+
 train_idx <- c(sample(which(datos$CLASS == 1), size =
                         ceiling(0.8*sum(datos$CLASS==1))),
                sample(which(datos$CLASS == 2), size =
@@ -102,6 +109,7 @@ train_idx <- c(sample(which(datos$CLASS == 1), size =
                sample(which(datos$CLASS == 10), size =
                         ceiling(0.8*sum(datos$CLASS==10))))
 
+#train_idx <- sample(seq(1, nrow(datos)), ceiling(0.8*nrow(datos)))
 # Hacemos el conjunto de train con estos índices
 train10 <- datos[train_idx,]
 # Hacemos el conjunto de test con todas aquellas variables que no tengan estos
@@ -144,7 +152,11 @@ test10 <- test10[,-6]
 
 Como hemos podido ver hay muchas que tienen valores cercanos a cero, pero sobre estos no podemos decir nada en claro, así que vamos a pasar a utilizar el algoritmo PCA. Para ello vamos a utilizar la función `prcomp` del paquete `stats` instalado por defecto en `R`.
 
-AQUÍ HAY QUE EXPLICAR POR QUÉ HAY QUE ESCALAR Y CENTRAR POR TEMAS.
+El análisis de componente principales (PCA) sigue la siguiente idea: nosotros podemos tener nuestras muestran con gran multitud de características, es decir, muestras con una elevada dimensión. Ahora bien pueden darse caso en que no todas estas características tengan la misma relevancia, no aporten la misma información. Por motivos de eficiencia computacional y obtener un modelo más sencillo es claro que es bueno reducir este número de variables, y esto es lo que hace el PCA. Buscamos una representación de los datos de dimensión más baja que capture toda (o una cantidad considerable) de la información. Un dimensión es interesante en términos de cómo las observaciones varían a lo largo de dicha dimensión.
+
+Si nuestras muestras tienen el siguiente conjunto de características $X_1, X_2, ..., X_p$ entonces primer componente principal será $Z_1 = \phi_1X_1 + ... + \phi_pX_p$ y buscamos entoncecs una combinación lineal de las características anteriores, cumpliendo que el cuadrado de los coeficientes (*loadings*) sumen uno, que maximize la varianza, es decir, que maximice $\frac{1}{n}\sum_{i = 1}^n \left( \sum_{j = 1}^p \phi_{j1}x_{ij} \right)^2$ (estamos sumoniendo que las variables tienen media cero para estos cálculos). Señalar que la condición de normalización que le imponemos a los *loadings* es para que no ganemos máxima varianza simplemente haciéndolos crecer mucho. Para calcular el resto de componente principales se hace de la misma manera restringiendo además a que no estén correlados con los anteriores; que sean ortogonales (si vemos los *loadings* como vectores) a los anteriores.
+
+Ya hemos asumido antes que la media de cada variable es cero ya que sólo estamos interesados en la varianza y esto facilita los cálculos. Por otro lado, si no tenemos ninguna restricción que lo impida, es conveniente escalar las variables de modo que no tengan una más influencia que otra simplemente por la escala en la que está medida, por ejemplo si una variable da saltos de 1000 en 1000 y otra de 10 en 10, aunque los datos de la primera presenten menos varianza debido a la magnidtud de los datos ésta tendrá más influencia.
 
 ```{r}
 pca.out <- prcomp(train, center = TRUE, scale = TRUE)
@@ -255,6 +267,8 @@ data <- as.matrix(data.frame(predicciones))
 clases.predichas <- apply(data, 1, function(x) {
   which.max(x)
 })
+cat("Porcentaje de acierto:", 100*sum(clases.predichas == NSP.test)/
+      length(NSP.test))
 ```
 
 Vamos a ver ahora prediciendo con 10 clases:
@@ -276,6 +290,30 @@ clases.predichas10 <- apply(data, 1, function(x) {
 
 
 SIN PCA:
+
+```{r}
+set.seed(1)
+cv.fit <- cv.glmnet(as.matrix(train10), CLASS.train, alpha = 0, 
+                    family = "multinomial")
+lambda <- cv.fit$lambda.min
+modelo10 <- glmnet(as.matrix(train10), CLASS.train, alpha = 0, 
+                     family = "multinomial", lambda = lambda)
+predicciones <- predict(modelo10, s=lambda, newx = test10, type="response")
+data <- as.matrix(data.frame(predicciones))
+clases.predichas10 <- apply(data, 1, function(x) {
+  which.max(x)
+})
+```
+
+```{r}
+library(fields)
+data <- train10
+data <- as.matrix(data)
+distancia <- rdist(data)
+distMedia <- sum(distancia)/(nrow(distancia)*ncol(distancia)- nrow(distancia))
+distMedia
+```
+
 
 #7. Argumentar sobre la idoneidad de la función regularización usada (en su caso).
 
