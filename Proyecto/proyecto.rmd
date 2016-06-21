@@ -8,6 +8,7 @@ output: pdf_document
 ```{r}
 library(caret) # para qué?
 library(glmnet)
+library(fields)
 ```
 
 
@@ -81,10 +82,6 @@ test <- datos[-train_idx,]
 ```
 
 ```{r}
-set.seed(1)
-#datos$CLASS = sample(seq(1,10), length(datos$CLASS), replace = T)
-datos$CLASS = datos$NSP
-#datos$CLASS = sample(seq(1,10), length(datos$CLASS), replace = T)
 set.seed(1)
 # Cogemos los índices del 80% de los datos para cada clase
 
@@ -248,7 +245,53 @@ A continuación vamos a explicar cómo funciona la regresion logística multinomial
 
 #6. Aplicación de las técnicas especificando claramente qué algoritmos se usan en la estimación de los parámetros, los hiperparámetros y el error de generalización.
 
+DISTINGUIR ENTRE SVM Y REGRESIÓN LOGÍSTICA
+FARFOLLA
+```{r}
+classSepMeasure <- function(trainp, clases, numClases) {
+  train <- as.matrix(trainp)
+  m <- apply(train, 2, sum)/nrow(train)
+  mis <- sapply(1:numClases, function(i) {
+    datosi <- train[clases==i, ]
+    apply(datosi, 2, sum)/nrow(datosi)
+  }) 
+  n <- 2
+  Sw <- matrix(0, n, n)
+  for (i in 1:numClases) {
+    matriz <- matrix(0, n, n)
+    datosi <- train[clases==i, ]
+    for(j in 1:nrow(datosi)) {
+      matriz_j <- (datosi[j,] - mis[,i])%*%t(datosi[j,] - mis[,i])
+      matriz <- matriz + matriz_j
+    }
+    Sw <- Sw + matriz
+  }
+  
+  Sb <- matrix(0, n, n)
+  for (i in 1:numClases) {
+    ni <- sum(clases == i)
+    Mi <- ni*((mis[,i] - m)%*%t(mis[,i] - m))
+    Sb <- Sb + Mi
+  }
+  
+  J <- sum(diag(Sb))/sum(diag(Sw))
+  
+  return(J)
+}
+```
+
+```{r}
+classSepMeasure(train10, CLASS.train, 10)
+```
+
+
+
+
+
 CON PCA:
+EXPLICAR QUÉ HACE CV.GLMNET
+EXPLICAR QUÉ HACE GLMNET
+
 
 ```{r}
 set.seed(1)
@@ -272,6 +315,44 @@ cat("Porcentaje de acierto:", 100*sum(clases.predichas == NSP.test)/
 ```
 
 Vamos a ver ahora prediciendo con 10 clases:
+
+
+INCISO A VER SI FUNCIONA Y EL PAQUETE ES TONTO
+```{r}
+set.seed(1)
+clase = 10
+train_una_clase = train10[CLASS.train == clase,]
+n_datos_clase = nrow(train_una_clase)
+train_idx <- sample(which(CLASS.train != clase), n_datos_clase)
+train.resto = train10[train_idx,]
+train.OVA = rbind(train_una_clase, train.resto)
+train.CLASS.OVA = c(rep(1, n_datos_clase), rep(0, n_datos_clase))
+
+test.OVA <- train10[-c(train_idx, which(CLASS.train == clase)), ]
+
+cv.fit <- cv.glmnet(as.matrix(train.OVA), train.CLASS.OVA, alpha = 0, 
+                    family = "binomial")
+lambda <- cv.fit$lambda.min
+modelo <- glmnet(as.matrix(train.OVA), train.CLASS.OVA, alpha = 0, 
+                 lambda = lambda, family="binomial")
+predicciones <- predict(modelo, s=lambda, newx = test.OVA, type = "response")
+data <- as.matrix(data.frame(predicciones))
+
+
+clases.predichas = rep(0, nrow(test.OVA))
+clases.predichas[predicciones > .5] = 1
+
+cat("Porcentaje de acierto:", 100*sum(clases.predichas == 0)/
+      nrow(test.OVA))
+```
+
+
+
+
+
+
+
+
 
 ```{r}
 set.seed(1)
@@ -305,14 +386,58 @@ clases.predichas10 <- apply(data, 1, function(x) {
 })
 ```
 
+
+NO PARAMÉTRICO:
+
+Vamos a calcular la distancia media de los puntos dentro de una misma clase, y lo vamos a hacer tanto para NSP, donde tenemos 3 clases, como para CLASS, donde tenemos 10, y posteriormente lo vamos a comparar con la distancia media de todos los puntos, para hacernos una idea de si sería mejor utilizar KNN (en el caso de que las distancias medias de cada clase sean pequeñas y más pequeñas que la general) o funciones de base radial no paramétricas (en caso de que esto no sea así).  
+
+Empezamos calculando las distancias medias para las 3 clases que define NSP.
+
 ```{r}
-library(fields)
-data <- train10
-data <- as.matrix(data)
-distancia <- rdist(data)
-distMedia <- sum(distancia)/(nrow(distancia)*ncol(distancia)- nrow(distancia))
-distMedia
+getDistanciasMedias <- function(clases, train, numClases) {
+  distanciasMedias <- sapply(1:numClases, function(i) {
+    if (is.null(clases)) {
+      data <- as.matrix(train)
+    }
+    else {
+      data <- which(clases == i)
+      data <- as.matrix(train[data,])
+    }
+    distancia <- rdist(data)
+    distMedia <- sum(distancia)/
+      (nrow(distancia)*ncol(distancia)- nrow(distancia))
+    distMedia
+  })
+  return(distanciasMedias)
+}
+
 ```
+
+```{r}
+print(getDistanciasMedias(NSP.train, train, 3))
+print(getDistanciasMedias(CLASS.train, train10, 10))
+print(getDistanciasMedias(NULL, train, 1))
+print(getDistanciasMedias(NULL, train10, 1))
+```
+
+
+
+```{r}
+#FUNCIONES DE BASE RADIAL
+
+#Función que devuelve un núcleo Gaussiano normalizado para R^d
+fiD <- function(d){
+  function(z) {exp(-0.5 * z^2)/((2*pi)^(-d/2))}
+}
+
+RBF <- function(x, datos.train, et.train, r) {
+  N = nrow(datos.train) #num muestras train
+  fi <- fiD(ncol(datos.train))
+  alfas = apply(datos.train, 1, function(y) { fi(dist(y,x)/r) } )
+  sum(alfas*et.train)/sum(alfas) #g(x)
+}
+```
+
 
 
 #7. Argumentar sobre la idoneidad de la función regularización usada (en su caso).
