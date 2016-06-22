@@ -245,8 +245,12 @@ A continuación vamos a explicar cómo funciona la regresion logística multinomial
 
 #6. Aplicación de las técnicas especificando claramente qué algoritmos se usan en la estimación de los parámetros, los hiperparámetros y el error de generalización.
 
-DISTINGUIR ENTRE SVM Y REGRESIÓN LOGÍSTICA
-FARFOLLA
+Como podemos leer en el libro ISLR regresión logística y SVM tienen funciones de pérdida muy parecidas, en consecuencia los rendimientos que ofrecen son muy parecidos. Ahora bien lo que distingue a ambos en su comportamiento según el solapamiento que haya entre las distintas clases de la muestra. Así cuando tenemos un solamiento mayor la regresión logística muestra, experimentalmente, un mejor rendimiento que el SVM. En cambio cuando los datos son separables es el SVM el que se comporta mejor.
+
+Podríamos pensar en que SVM cuenta con la potencia que le aportan los núcleos, no obstante si el solapamiento entre las clases es considerable ningún núcleo será el adecuado, es decir, no tendríamos seguridad de que SVM funcione mejor.
+
+Por tanto para decidirnos vamos a medir el solapamiento entre las distintas clases, esto lo haremos mediante la métrica CSM que se basa en realizar un cociente entre las distancias de los puntos de cada clase al punto medio de su clase con las distancias entre los puntos medios de las clases al punto medio de la muestra total. Así si las primeras son muy grandes el índice, J (que es este cociente), será pequeño indicando que hay solapamiento entre las clases, ya que por decirlo de alguna manera las clases están más dispersas que la muestra, indicando que efectivamente han de estar entremezcladas. A continuación mostramos el código de la función que nos medirá este índice de solapamiento para una muestra dada:
+
 ```{r}
 classSepMeasure <- function(trainp, clases, numClases) {
   train <- as.matrix(trainp)
