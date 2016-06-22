@@ -5,7 +5,7 @@ date: "16 de junio de 2016"
 output: pdf_document
 ---
 
-```{r}
+```{r, include=FALSE}
 library(caret) # para qué?
 library(glmnet)
 library(fields)
@@ -240,7 +240,9 @@ De entre los modelos paramétricos que hemos visto en la asignatura nos vamos a d
 
 Por otro lado las funciones de base radial paramétricas no nos parecen una buena opción ya que dependen fuertemente de cómo estén distribuidos los datos, es decir, les ocurre como al KNN; si tenemos puntos próximos al punto a etiquetar de clase distinta a la real del punto entonces la clasificación no será buena. En cambio pensamos que dado que la regresión logística nos da una visión probabilística del etiquetado será más robusta a estas situaciones.
 
-A continuación vamos a explicar cómo funciona la regresion logística multinomial:
+A continuación vamos a explicar cómo funciona la regresion logística multinomial:  
+
+
 
 
 #6. Aplicación de las técnicas especificando claramente qué algoritmos se usan en la estimación de los parámetros, los hiperparámetros y el error de generalización.
@@ -249,7 +251,9 @@ Como podemos leer en el libro ISLR regresión logística y SVM tienen funciones de
 
 Podríamos pensar en que SVM cuenta con la potencia que le aportan los núcleos, no obstante si el solapamiento entre las clases es considerable ningún núcleo será el adecuado, es decir, no tendríamos seguridad de que SVM funcione mejor.
 
-Por tanto para decidirnos vamos a medir el solapamiento entre las distintas clases, esto lo haremos mediante la métrica CSM que se basa en realizar un cociente entre las distancias de los puntos de cada clase al punto medio de su clase con las distancias entre los puntos medios de las clases al punto medio de la muestra total. Así si las primeras son muy grandes el índice, J (que es este cociente), será pequeño indicando que hay solapamiento entre las clases, ya que por decirlo de alguna manera las clases están más dispersas que la muestra, indicando que efectivamente han de estar entremezcladas. A continuación mostramos el código de la función que nos medirá este índice de solapamiento para una muestra dada:
+Por tanto para decidirnos vamos a medir el solapamiento entre las distintas clases, esto lo haremos mediante la métrica CSM que se basa en realizar un cociente entre las distancias de los puntos de cada clase al punto medio de su clase con las distancias entre los puntos medios de las clases al punto medio de la muestra total. Así si las primeras son muy grandes el índice, J (que es este cociente), será pequeño indicando que hay solapamiento entre las clases, ya que por decirlo de alguna manera las clases están más dispersas que la muestra, indicando que efectivamente han de estar entremezcladas. Haciendo varios experimentos nos hemos dado cuenta de que si las clases están separadas pero juntas este índice el 0.5. Si las clases están separadas y además hay separación entre ellas J será mayor que 0.5 (y mayor cuanta más separación haya) y si las clases están solapadas J será menor que 0.5. Este estudio lo hemos sacado gracias a los enlaces [4] y [5].
+
+A continuación mostramos el código de la función que nos medirá este índice de solapamiento para una muestra dada:
 
 ```{r}
 classSepMeasure <- function(trainp, clases, numClases) {
@@ -259,7 +263,7 @@ classSepMeasure <- function(trainp, clases, numClases) {
     datosi <- train[clases==i, ]
     apply(datosi, 2, sum)/nrow(datosi)
   }) 
-  n <- 2
+  n <- 20
   Sw <- matrix(0, n, n)
   for (i in 1:numClases) {
     matriz <- matrix(0, n, n)
@@ -286,22 +290,33 @@ classSepMeasure <- function(trainp, clases, numClases) {
 
 ```{r}
 classSepMeasure(train10, CLASS.train, 10)
+classSepMeasure(trainPCA10, CLASS.train, 10)
+classSepMeasure(train, NSP.train, 3)
+classSepMeasure(trainPCA, NSP.train, 3)
+```
+
+Como vemos, este índice es menor que 0.5 en todos los casos, pero es que además cuando tenemos en cuenta 3 clases en lugar de 10 (`NSP`) este índice es un poco mayor que 0.1, con lo que las clases están muy solapadas y por tanto nos vamos a decantar por la regresión logística en ambos casos, tanto con 10 clases como con 3.
+
+Empezamos haciendo el análisis para las 3 clases, es decir, según la variable `NSP`, y además empezamos haciéndolo con la transformación que nos ha dado PCA.
+
+Para ello, vamos a utilizar regresión logística con regularización weigth-decay con el paquete `glmnet`. Como sabemos, hay un coeficiente, $\lambda$, que regula la influencia que tiene la condición de regularización (de "contracción") en el ajuste. Para elegir dicho $\lambda$ vamos a hacer validación cruzada con el mismo paquete haciendo uso de la función `cv.glmnet`, que nos devuelve justo el mejor $\lambda$ encontrado entre una rejilla. Esta validación cruzada la vamos a hacer con cinco particiones especificándolo con la variable `nfolds = 5` indicando que la regularización que queremos hacer es weight-decay (que se especifica con el parámetro `alpha = 0`). El porqué hemos elegido esta regularización está explicado en la sección dedicada para ello, la número 7. Además, como tenemos 3 clases y la clasificación no es binaria vamos a especificar con el parámetro `family = "multinomial"` que queremos hacer clasificación multiclase.
+
+```{r}
+# Fijamos primero la semilla ya que la partición para cross validation es 
+# aleatoria.
+set.seed(1)
+cv.fit <- cv.glmnet(as.matrix(trainPCA), NSP.train, alpha = 0, 
+                    family = "multinomial", nfolds = 5)
+lambda <- cv.fit$lambda.min
 ```
 
 
 
-
-
-CON PCA:
-EXPLICAR QUÉ HACE CV.GLMNET
 EXPLICAR QUÉ HACE GLMNET
 
 
 ```{r}
-set.seed(1)
-cv.fit <- cv.glmnet(as.matrix(trainPCA), NSP.train, alpha = 0, 
-                    family = "multinomial")
-lambda <- cv.fit$lambda.min
+
 modeloPCA3 <- glmnet(as.matrix(trainPCA), NSP.train, alpha = 0, 
                      family = "multinomial", lambda = lambda)
 predicciones <- predict(modeloPCA3, s=lambda, newx = testPCA, type="response")
@@ -314,81 +329,112 @@ data <- as.matrix(data.frame(predicciones))
 clases.predichas <- apply(data, 1, function(x) {
   which.max(x)
 })
-cat("Porcentaje de acierto:", 100*sum(clases.predichas == NSP.test)/
-      length(NSP.test))
+cat("Porcentaje de acierto sobre 3 clases con PCA:", 
+    100*sum(clases.predichas == NSP.test)/length(NSP.test))
 ```
 
-Vamos a ver ahora prediciendo con 10 clases:
-
-
-INCISO A VER SI FUNCIONA Y EL PAQUETE ES TONTO
-```{r}
-set.seed(1)
-clase = 10
-train_una_clase = train10[CLASS.train == clase,]
-n_datos_clase = nrow(train_una_clase)
-train_idx <- sample(which(CLASS.train != clase), n_datos_clase)
-train.resto = train10[train_idx,]
-train.OVA = rbind(train_una_clase, train.resto)
-train.CLASS.OVA = c(rep(1, n_datos_clase), rep(0, n_datos_clase))
-
-test.OVA <- train10[-c(train_idx, which(CLASS.train == clase)), ]
-
-cv.fit <- cv.glmnet(as.matrix(train.OVA), train.CLASS.OVA, alpha = 0, 
-                    family = "binomial")
-lambda <- cv.fit$lambda.min
-modelo <- glmnet(as.matrix(train.OVA), train.CLASS.OVA, alpha = 0, 
-                 lambda = lambda, family="binomial")
-predicciones <- predict(modelo, s=lambda, newx = test.OVA, type = "response")
-data <- as.matrix(data.frame(predicciones))
-
-
-clases.predichas = rep(0, nrow(test.OVA))
-clases.predichas[predicciones > .5] = 1
-
-cat("Porcentaje de acierto:", 100*sum(clases.predichas == 0)/
-      nrow(test.OVA))
-```
-
-
-
-
-
-
-
-
+Vamos a hacerlo ahora sin PCA a ver la diferencia que hay con PCA, a ver si merece la pena bajar las dimensiones porque no se pierde mucha información o por el contrario no merece la pena porque sale una predicción mucho mejor con todas las variables (en nuestro caso que tampoco tenemos muchas variables y podemos permitirnos hacer este estudio).
 
 ```{r}
+# Fijamos primero la semilla ya que la partición para cross validation es 
+# aleatoria.
 set.seed(1)
-cv.fit <- cv.glmnet(as.matrix(trainPCA10), CLASS.train, alpha = 0, 
-                    family = "multinomial")
+cv.fit <- cv.glmnet(as.matrix(train), NSP.train, alpha = 0, 
+                    family = "multinomial", nfolds = 5)
 lambda <- cv.fit$lambda.min
-modeloPCA10 <- glmnet(as.matrix(trainPCA10), CLASS.train, alpha = 0, 
+modelo3 <- glmnet(as.matrix(train), NSP.train, alpha = 0, 
                      family = "multinomial", lambda = lambda)
-predicciones <- predict(modeloPCA10, s=lambda, newx = testPCA10, type="response")
+predicciones <- predict(modelo3, s=lambda, newx = test, type="response")
+
 data <- as.matrix(data.frame(predicciones))
-clases.predichas10 <- apply(data, 1, function(x) {
+clases.predichas <- apply(data, 1, function(x) {
   which.max(x)
 })
+cat("Porcentaje de acierto sobre 3 clases sin PCA:", 
+    100*sum(clases.predichas == NSP.test)/length(NSP.test))
+
 ```
 
+Como vemos el porcentaje de acierto es similar: es un 1% mayor. Sin embargo, en el problema que nos ocupa, quizás sí sea una diferencia significativa. Aunque en realidad teniendo en cuenta el porcentaje de acierto, que tampoco es muy alto, quizás habría que centrarse primero en mejorarlo cambiando de técnica (mejorando con técnicas no paramétricas como vamos a hacer a continuación) que preocuparse por ese 1%. TODO GORDO.
 
-
-SIN PCA:
+Vamos ahora a enfocar el problema desde las 10 clases. En este caso hemos tenido problemas con el paquete `glmnet` ya que nos devolvía siempre la misma clase. No sabíamos si esto era así porque no había relación entre las etiquetas y los datos realmente o porque el paquete no funcionaba bien con tantas clases o en este problema en concreto por causas ajenas a nosotros, por lo que hemos hecho un experimento a ver si tratándolo como un problema binario del tipo *uno contra todos* (OVA) nos devuelve salidas lógicas. Lo que hemos hecho ha sido, para cada clase, hacer un problema binario cogiendo todas las instancias de train de esa clase y una muestra del mismo tamaño de las demás, y pasarle después el resto de muestras de train como datos de test, esperando que para todas ellas devolviera que no pertenecen a la clase considerada:
 
 ```{r}
-set.seed(1)
-cv.fit <- cv.glmnet(as.matrix(train10), CLASS.train, alpha = 0, 
-                    family = "multinomial")
-lambda <- cv.fit$lambda.min
-modelo10 <- glmnet(as.matrix(train10), CLASS.train, alpha = 0, 
-                     family = "multinomial", lambda = lambda)
-predicciones <- predict(modelo10, s=lambda, newx = test10, type="response")
-data <- as.matrix(data.frame(predicciones))
-clases.predichas10 <- apply(data, 1, function(x) {
-  which.max(x)
-})
+for (i in 1:10) {
+  set.seed(1)
+  clase = i
+  # Tomamos los datos de la clase i
+  train_una_clase = train10[CLASS.train == clase,]
+  n_datos_clase = nrow(train_una_clase)
+  # Tomamos una muestra del resto del mismo tamaño
+  train_idx <- sample(which(CLASS.train != clase), n_datos_clase)
+  train.resto = train10[train_idx,]
+  # Juntamos la clase considerada con la muestra de las demás
+  train.OVA = rbind(train_una_clase, train.resto)
+  # Asignamos como etiquetas 1 si pertenece a la clase considerada y 0 si no.
+  train.CLASS.OVA = c(rep(1, n_datos_clase), rep(0, n_datos_clase))
+  
+  # Consideramos como test el resto de datos de train
+  test.OVA <- train10[-c(train_idx, which(CLASS.train == clase)), ]
+  
+  # Hacemos cross validation para el problema binomial
+  cv.fit <- cv.glmnet(as.matrix(train.OVA), train.CLASS.OVA, alpha = 0, 
+                      family = "binomial")
+  lambda <- cv.fit$lambda.min
+  # Entrenamos un modelo binomial
+  modelo <- glmnet(as.matrix(train.OVA), train.CLASS.OVA, alpha = 0, 
+                   lambda = lambda, family="binomial")
+  predicciones <- predict(modelo, s=lambda, newx = test.OVA, type = "response")
+  data <- as.matrix(data.frame(predicciones))
+  
+  clases.predichas = rep(0, nrow(test.OVA))
+  clases.predichas[predicciones > .5] = 1
+  
+  # Obtenemos el porcentaje de acierto
+  cat("Porcentaje de acierto para la clase", i, ":", 
+      100*sum(clases.predichas == 0)/nrow(test.OVA), "\n")
+}
 ```
+
+Como vemos devuelve cosas lógicas en tanto que los porcentajes de acierto son relativamente altos, con lo que el problema no es que las etiquetas no tengan relación con los datos. Lo que vamos a hacer entonces es programar para este caso nosotros la clasificación multiclase haciendo un OVA con regresión logística binaria utilizando para la binaria el paquete `glmnet`.
+
+```{r}
+generarOVA <- function(train, clase, clases) {
+  # Asignamos como etiquetas 1 si pertenece a la clase considerada y 0 si no.
+  train.CLASS.OVA <- clases
+  train.CLASS.OVA[clases == clase] <- 1
+  train.CLASS.OVA[clases != clase] <- 0
+  
+  # Hacemos cross validation para el problema binomial
+  cv.fit <- cv.glmnet(as.matrix(train), train.CLASS.OVA, alpha = 0, 
+                      family = "binomial")
+  lambda <- cv.fit$lambda.min
+  # Entrenamos un modelo binomial
+  modelo <- glmnet(as.matrix(train), train.CLASS.OVA, alpha = 0, 
+                   lambda = lambda, family="binomial")
+  return(list(modelo, lambda))
+}
+
+predictOVA <- function(train, clases, numClases, test) {
+  prediccionesOVA <- matrix(0, nrow(test), numClases)
+  for (i in 1:numClases) {
+    Mi <- generarOVA(train, i, clases)
+    modeloi <- Mi[[1]]
+    lambdai <- Mi[[2]]
+    prediccionesOVA[,i] <- predict(modeloi, s=lambdai, newx = test, 
+                                   type = "response")
+  }
+  
+  clases.predichas <- apply(prediccionesOVA, 1, which.max)
+  return(clases.predichas)
+}
+```
+
+
+
+
+
+
 
 
 NO PARAMÉTRICO:
@@ -460,4 +506,6 @@ RBF <- function(x, datos.train, et.train, r) {
 \item La base de datos: \url{https://archive.ics.uci.edu/ml/datasets/Cardiotocography#}
 \item PCA con `R`: \url{http://www.r-bloggers.com/computing-and-visualizing-pca-in-r/}
 \item Partición de los datos: \href{http://stackoverflow.com/questions/13536537/partitioning-data-set-in-r-based-on-multiple-classes-of-observations}{http://stackoverflow.com/questions/...}
+\item \url{http://www.prasa.org/proceedings/2004/prasa04-12.pdf}
+\item \url{http://ro.uow.edu.au/cgi/viewcontent.cgi?article=1791&context=eispapers}
 \end{enumerate}
