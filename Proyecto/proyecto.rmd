@@ -306,7 +306,7 @@ Para ello, vamos a utilizar regresión logística con regularización weigth-decay 
 # aleatoria.
 set.seed(1)
 cv.fit <- cv.glmnet(as.matrix(trainPCA), NSP.train, alpha = 0, 
-                    family = "multinomial", nfolds = 5)
+                    family = "multinomial", nfolds = 5, type.measure = "mse")
 lambda <- cv.fit$lambda.min
 ```
 
@@ -340,7 +340,7 @@ Vamos a hacerlo ahora sin PCA a ver la diferencia que hay con PCA, a ver si mere
 # aleatoria.
 set.seed(1)
 cv.fit <- cv.glmnet(as.matrix(train), NSP.train, alpha = 0, 
-                    family = "multinomial", nfolds = 5)
+                    family = "multinomial", nfolds = 5, type.measure = "mse")
 lambda <- cv.fit$lambda.min
 modelo3 <- glmnet(as.matrix(train), NSP.train, alpha = 0, 
                      family = "multinomial", lambda = lambda)
@@ -379,7 +379,7 @@ for (i in 1:10) {
   
   # Hacemos cross validation para el problema binomial
   cv.fit <- cv.glmnet(as.matrix(train.OVA), train.CLASS.OVA, alpha = 0, 
-                      family = "binomial")
+                      family = "binomial", type.measure = "mse")
   lambda <- cv.fit$lambda.min
   # Entrenamos un modelo binomial
   modelo <- glmnet(as.matrix(train.OVA), train.CLASS.OVA, alpha = 0, 
@@ -407,7 +407,7 @@ generarOVA <- function(train, clase, clases) {
   
   # Hacemos cross validation para el problema binomial
   cv.fit <- cv.glmnet(as.matrix(train), train.CLASS.OVA, alpha = 0, 
-                      family = "binomial")
+                      family = "binomial", type.measure = "mse")
   lambda <- cv.fit$lambda.min
   # Entrenamos un modelo binomial
   modelo <- glmnet(as.matrix(train), train.CLASS.OVA, alpha = 0, 
