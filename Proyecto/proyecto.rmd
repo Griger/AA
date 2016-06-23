@@ -299,7 +299,7 @@ Como vemos, este índice es menor que 0.5 en todos los casos, pero es que además 
 
 Empezamos haciendo el análisis para las 3 clases, es decir, según la variable `NSP`, y además empezamos haciéndolo con la transformación que nos ha dado PCA.
 
-Para ello, vamos a utilizar regresión logística con regularización weigth-decay con el paquete `glmnet`. Como sabemos, hay un coeficiente, $\lambda$, que regula la influencia que tiene la condición de regularización (de "contracción") en el ajuste. Para elegir dicho $\lambda$ vamos a hacer validación cruzada con el mismo paquete haciendo uso de la función `cv.glmnet`, que nos devuelve justo el mejor $\lambda$ encontrado entre una rejilla. Esta validación cruzada la vamos a hacer con cinco particiones especificándolo con la variable `nfolds = 5` indicando que la regularización que queremos hacer es weight-decay (que se especifica con el parámetro `alpha = 0`). El porqué hemos elegido esta regularización está explicado en la sección dedicada para ello, la número 7. Además, como tenemos 3 clases y la clasificación no es binaria vamos a especificar con el parámetro `family = "multinomial"` que queremos hacer clasificación multiclase.
+Para ello, vamos a utilizar regresión logística con regularización weigth-decay con el paquete `glmnet`. Como sabemos, hay un coeficiente, $\lambda$, que regula la influencia que tiene la condición de regularización (de "contracción") en el ajuste. Para elegir dicho $\lambda$ vamos a hacer validación cruzada con el mismo paquete haciendo uso de la función `cv.glmnet`, que nos devuelve justo el mejor $\lambda$ encontrado entre una rejilla. Esta validación cruzada la vamos a hacer con cinco particiones especificándolo con la variable `nfolds = 5` indicando que la regularización que queremos hacer es weight-decay (que se especifica con el parámetro `alpha = 0`). El porqué hemos elegido esta regularización está explicado en la sección dedicada para ello, la número 7. Además, como tenemos 3 clases y la clasificación no es binaria vamos a especificar con el parámetro `family = "multinomial"` que queremos hacer clasificación multiclase. Vamos a hacer que elija como $\lambda$ aquel que minimice la media de los errores cuadráticos, para lo que tenemos que poner como argumento a la función `type.measure = "mse"`.
 
 ```{r}
 # Fijamos primero la semilla ya que la partición para cross validation es 
@@ -308,8 +308,16 @@ set.seed(1)
 cv.fit <- cv.glmnet(as.matrix(trainPCA), NSP.train, alpha = 0, 
                     family = "multinomial", nfolds = 5, type.measure = "mse")
 lambda <- cv.fit$lambda.min
+print(lambda)
 ```
 
+Vamos a pintar, para todos los valores de $\lambda$ que ha tomado `cv.glmnet()`, el logaritmo de dichos valores en el eje X y el error cuadrático medio para ese valor de $\lambda$ en el eje Y:
+
+```{r}
+plot(cv.fit)
+```
+
+Como vemos, el logaritmo del valor de $\lambda$ que nos ha salido, `r log(lambda)`, coincide con el mínimo valor de los errores cuadráticos medios.
 
 
 EXPLICAR QUÉ HACE GLMNET
@@ -439,9 +447,9 @@ predictOVA <- function(train, clases, numClases, test) {
 
 NO PARAMÉTRICO:
 
-Vamos a calcular la distancia media de los puntos dentro de una misma clase, y lo vamos a hacer tanto para NSP, donde tenemos 3 clases, como para CLASS, donde tenemos 10, y posteriormente lo vamos a comparar con la distancia media de todos los puntos, para hacernos una idea de si sería mejor utilizar KNN (en el caso de que las distancias medias de cada clase sean pequeñas y más pequeñas que la general) o funciones de base radial no paramétricas (en caso de que esto no sea así).  
+Para elegir entre KNN y RBF (funciones de base radial) vamos a volver a utilizar el índice *J* que habíamos calculado previamente para elegir entre regresión logística y SVM, ya que aquí también nos influye cómo de solapadas estén las clases, ya que si no hay solapamiento convendría más utilizar KNN ya que ahí los K vecinos más cercanos influyen lo mismo para elegir la clase, mientras que si hay solapamiento conviene más utilizar funciones de base radial para que influyan menos los valores que están más lejanos, ya que al tenerlos mezclados en la frontera, a un punto lo suficientemente cercano a la frontera le viene mejor que estos influyan menos a que los coja por igual el KNN. Además, al estar las clases solapadas usando KNN corremos el riesgo de que los K vecinos más cercanos no sean (en mayoría) de la clase del punto a clasificar. Este problema lo evitamos empleando base radial puesto que en ella todos los puntos tienen influencía, así por ejemplo pueden vencer puntos que estén algo más alejados del punto en cuestión pero que sean de la clase correcta.  
 
-Empezamos calculando las distancias medias para las 3 clases que define NSP.
+Además de utilizar este índice, vamos a calcular la distancia media entre todos los puntos de una clase y la distancia media entre todos los puntos de la muestra, de forma que si la distancia media de una clase con respecto a la distancia media de la muestra total es igual o mayor, esto podría decirnos que hay solapamiento, mientras que si es menor, que no lo hay. Lo vamos a hacer tanto para NSP, donde tenemos 3 clases, como para CLASS, donde tenemos 10.    
 
 ```{r}
 getDistanciasMedias <- function(clases, train, numClases) {
@@ -464,13 +472,29 @@ getDistanciasMedias <- function(clases, train, numClases) {
 ```
 
 ```{r}
-print(getDistanciasMedias(NSP.train, train, 3))
-print(getDistanciasMedias(CLASS.train, train10, 10))
-print(getDistanciasMedias(NULL, train, 1))
-print(getDistanciasMedias(NULL, train10, 1))
+cat("Distancias medias de las 3 clases:", 
+      getDistanciasMedias(NSP.train, train, 3))
+cat("Distancia media de la muestra completa para 3 clases:",
+    getDistanciasMedias(NULL, train, 1))
+cat("Distancias medias de las 10 clases: ",
+    getDistanciasMedias(CLASS.train, train10, 10))
+cat("Distancia media de la muestra completa para 10 clases:",
+    getDistanciasMedias(NULL, train10, 1))
+cat("Distancias medias de las 3 clases con PCA:", 
+      getDistanciasMedias(NSP.train, trainPCA, 3))
+cat("Distancia media de la muestra completa para 3 clases con PCA:",
+    getDistanciasMedias(NULL, trainPCA, 1))
+cat("Distancias medias de las 10 clases con PCA: ",
+    getDistanciasMedias(CLASS.train, trainPCA10, 10))
+cat("Distancia media de la muestra completa para 10 clases con PCA:",
+    getDistanciasMedias(NULL, trainPCA10, 1))
 ```
 
+Efectivamente nos sale algo parecido a lo que deducíamos del índice *J*, ya que para las 3 clases (tanto con PCA como sin él), las medias de las clases están muy cerca o por encima de la media de la muestra total, mientras que para 10 clases (tanto con PCA como sin él), las medias están cerca de la media total de la muestra, con lo que tenemos más solapamiento con 3 clases que con 10 pero en ningún caso están completamente separadas.  
 
+Vamos a utilizar por tanto funciones de base radial. A continuación vemos la implementación de las mismas, que hemos llevado a cabo nosotros. 
+
+Vamos a hacer primero una función para hacer la clasificación con las funciones de base radial, donde en lugar de hacer la media de las distancias con las etiquetas, lo que vamos a hacer es sumar pesos que irán en función de *r* y el punto de test en cuestión. Donde *r* es la anchura que le vamos a dar a las gaussianas, que va a ser un valor que vamos a obtener por validación cruzada más adelante.
 
 ```{r}
 #FUNCIONES DE BASE RADIAL
@@ -480,13 +504,67 @@ fiD <- function(d){
   function(z) {exp(-0.5 * z^2)/((2*pi)^(-d/2))}
 }
 
-RBF <- function(x, datos.train, et.train, r) {
-  N = nrow(datos.train) #num muestras train
+distancia <- function(x, y) {
+  sqrt(sum((x-y)^2))
+}
+
+RBF <- function(x, datos.train, et.train, numClases, r) {
   fi <- fiD(ncol(datos.train))
-  alfas = apply(datos.train, 1, function(y) { fi(dist(y,x)/r) } )
-  sum(alfas*et.train)/sum(alfas) #g(x)
+  alfas <- apply(datos.train, 1, function(y) { fi(distancia(x,y)/r) } )
+  suma_total  <- sum(alfas)
+  sumas_parciales <- sapply(1:numClases, function(i) {
+    sum(alfas[et.train == i])
+  }) 
+  sumas_parciales <- sumas_parciales/suma_total
+  which.max(sumas_parciales)
 }
 ```
+
+```{r}
+predictEt <- function(datos.train, et.train, datos.test, numClases, r) {
+  etiquetas <- sapply(1:nrow(datos.test), function(i) {
+    RBF(datos.test[i,], datos.train, et.train, numClases, r)
+  })
+  return(etiquetas)
+}
+```
+
+```{r}
+cv.RBF <- function(datos.train, et.train, numClases, rango_r) {
+  # Realizamos las particiones de forma equilibrada
+  k = 5
+  folds = rep(1, nrow(datos.train))
+  for (i in 1:numClases) {
+    folds[et.train == i] <- c(sample(rep(seq(k), floor(sum(et.train == i)/k))),
+                              rep(1, sum(et.train == i) - 
+                                    k*floor(sum(et.train == i)/k)))
+  }
+  
+  media_aciertos <- vector("numeric", length(rango_r))
+  
+  for(j in 1:length(rango_r)) {
+    cat("El r a probar es: ", rango_r[j], "\n")
+    aciertos <- vector("numeric", k)
+    for(i in 1:k) {
+      cat("Fold: ", i, "\n")
+      etiq <- unlist(predictEt(datos.train[folds != i, ], et.train[folds != i], 
+                datos.train[folds == i, ], numClases, rango_r[j]))
+      print(etiq)
+      aciertos[i] <- sum(etiq == et.train[folds == i])/length(etiq)
+      cat("aciertos[",i,"] =", aciertos[i], "\n")
+    }
+    print(aciertos)
+    media_aciertos[j] <- mean(aciertos)
+    print(media_aciertos[j])
+  }
+  
+  return(rango_r[which.max(media_aciertos)])
+  
+}
+```
+
+ 
+
 
 
 
