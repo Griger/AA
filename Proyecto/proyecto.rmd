@@ -142,7 +142,7 @@ Como vemos, la variable DS tiene máximo y mínimo 0, con lo que es igual a 0 para
 ```{r}
 # Quitamos la variable DS, que ocupa la sexta columna
 train <- train[,-6]
-test <- test[,-6] # ESTO NO SABEMOS SI SE PUEDE HACER
+test <- test[,-6]
 train10 <- train10[,-6]
 test10 <- test10[,-6]
 ```
@@ -160,24 +160,28 @@ pca.out <- prcomp(train, center = TRUE, scale = TRUE)
 pca.out10 <- prcomp(train10, center = TRUE, scale = TRUE)
 ```
 
-VENDER HUMO
+Veamos qué nos ha devuelto el PCA sobre 3 variables
 
 ```{r}
-biplot(pca.out, scale = 0)
-plot(pca.out, main="PCA")
 summary(pca.out)
 ```
 
-Como podemos ver con `summary()`, con las 14 primeras componentes principales estamos explicando un 96% de los datos, y son con las que nos vamos a quedar para hacer el estudio reducido y ver si hay mejora al utilizar PCA. Vamos a hacer entonces la combinación lineal que nos da PCA para obtener el nuevo conjunto de train:
+Como podemos ver con `summary()`, con las 14 primeras componentes principales estamos explicando un 96% de los datos, y son con las que nos vamos a quedar para hacer el estudio reducido y ver si hay mejora al utilizar PCA. Vamos a hacer entonces la combinación lineal que nos da PCA para obtener el nuevo conjunto de train. Vamos a ver el PCA para 10 clases:
 
 ```{r}
-trainPCA <- apply(pca.out$rotation, 2, function(x) {
+summary(pca.out10)
+```
+
+De nuevo con las 14 primeras componentes principales conseguimos explicar más del 96% de los datos, con lo que vamos a quedarnos también con las 14 primeras.
+
+```{r}
+trainPCA <- apply(pca.out$rotation[, 1:14], 2, function(x) {
   apply(train, 1, function(y) {
     x%*%y
   })
 })
 
-trainPCA10 <- apply(pca.out10$rotation, 2, function(x) {
+trainPCA10 <- apply(pca.out10$rotation[ ,1:14], 2, function(x) {
   apply(train10, 1, function(y) {
     x%*%y
   })
@@ -187,14 +191,14 @@ trainPCA10 <- apply(pca.out10$rotation, 2, function(x) {
 Vamos a hacerle la combinación lineal al conjunto de test también con las componentes principales de train:
 
 ```{r}
-testPCA <- apply(pca.out$rotation, 2, function(x) {
+testPCA <- apply(pca.out$rotation[ ,1:14], 2, function(x) {
   apply(test, 1, function(y) {
     x%*%y
   })
 })
 
 
-testPCA10 <- apply(pca.out10$rotation, 2, function(x) {
+testPCA10 <- apply(pca.out10$rotation[ ,1:14], 2, function(x) {
   apply(test10, 1, function(y) {
     x%*%y
   })
@@ -241,7 +245,7 @@ De entre los modelos paramétricos que hemos visto en la asignatura nos vamos a d
 Por otro lado las funciones de base radial paramétricas no nos parecen una buena opción ya que dependen fuertemente de cómo estén distribuidos los datos, es decir, les ocurre como al KNN; si tenemos puntos próximos al punto a etiquetar de clase distinta a la real del punto entonces la clasificación no será buena. En cambio pensamos que dado que la regresión logística nos da una visión probabilística del etiquetado será más robusta a estas situaciones.
 
 A continuación vamos a explicar cómo funciona la regresion logística multinomial:  
-
+TODO
 
 
 
@@ -256,14 +260,14 @@ Por tanto para decidirnos vamos a medir el solapamiento entre las distintas clas
 A continuación mostramos el código de la función que nos medirá este índice de solapamiento para una muestra dada:
 
 ```{r}
-classSepMeasure <- function(trainp, clases, numClases) {
+classSepMeasure <- function(trainp, clases, numClases, n) {
   train <- as.matrix(trainp)
   m <- apply(train, 2, sum)/nrow(train)
   mis <- sapply(1:numClases, function(i) {
     datosi <- train[clases==i, ]
     apply(datosi, 2, sum)/nrow(datosi)
   }) 
-  n <- 20
+  
   Sw <- matrix(0, n, n)
   for (i in 1:numClases) {
     matriz <- matrix(0, n, n)
@@ -289,13 +293,13 @@ classSepMeasure <- function(trainp, clases, numClases) {
 ```
 
 ```{r}
-classSepMeasure(train10, CLASS.train, 10)
-classSepMeasure(trainPCA10, CLASS.train, 10)
-classSepMeasure(train, NSP.train, 3)
-classSepMeasure(trainPCA, NSP.train, 3)
+classSepMeasure(train10, CLASS.train, 10, 20)
+classSepMeasure(trainPCA10, CLASS.train, 10, 14)
+classSepMeasure(train, NSP.train, 3, 20)
+classSepMeasure(trainPCA, NSP.train, 3, 14)
 ```
 
-Como vemos, este índice es menor que 0.5 en todos los casos, pero es que además cuando tenemos en cuenta 3 clases en lugar de 10 (`NSP`) este índice es un poco mayor que 0.1, con lo que las clases están muy solapadas y por tanto nos vamos a decantar por la regresión logística en ambos casos, tanto con 10 clases como con 3.
+Como vemos, este índice es menor que 0.5 en todos los casos, pero es que además cuando tenemos en cuenta 3 clases en lugar de 10 (`NSP`) este índice es un poco mayor que 0.1 sin PCA y 0.05 con PCA, con lo que las clases están muy solapadas y por tanto nos vamos a decantar por la regresión logística en ambos casos, tanto con 10 clases como con 3.
 
 Empezamos haciendo el análisis para las 3 clases, es decir, según la variable `NSP`, y además empezamos haciéndolo con la transformación que nos ha dado PCA.
 
@@ -320,7 +324,7 @@ plot(cv.fit)
 Como vemos, el logaritmo del valor de $\lambda$ que nos ha salido, `r log(lambda)`, coincide con el mínimo valor de los errores cuadráticos medios.
 
 
-EXPLICAR QUÉ HACE GLMNET
+EXPLICAR QUÉ HACE GLMNET. TODO
 
 
 ```{r}
@@ -363,7 +367,7 @@ cat("Porcentaje de acierto sobre 3 clases sin PCA:",
 
 ```
 
-Como vemos el porcentaje de acierto es similar: es un 1% mayor. Sin embargo, en el problema que nos ocupa, quizás sí sea una diferencia significativa. Aunque en realidad teniendo en cuenta el porcentaje de acierto, que tampoco es muy alto, quizás habría que centrarse primero en mejorarlo cambiando de técnica (mejorando con técnicas no paramétricas como vamos a hacer a continuación) que preocuparse por ese 1%. TODO GORDO.
+Como vemos el porcentaje de acierto es similar: es un 2% mayor. Sin embargo, en el problema que nos ocupa, quizás sí sea una diferencia significativa. Aunque en realidad teniendo en cuenta el porcentaje de acierto, que tampoco es muy alto, quizás habría que centrarse primero en mejorarlo cambiando de técnica (mejorando con técnicas no paramétricas como vamos a hacer a continuación) que preocuparse por ese 2%. TODO GORDO.
 
 Vamos ahora a enfocar el problema desde las 10 clases. En este caso hemos tenido problemas con el paquete `glmnet` ya que nos devolvía siempre la misma clase. No sabíamos si esto era así porque no había relación entre las etiquetas y los datos realmente o porque el paquete no funcionaba bien con tantas clases o en este problema en concreto por causas ajenas a nosotros, por lo que hemos hecho un experimento a ver si tratándolo como un problema binario del tipo *uno contra todos* (OVA) nos devuelve salidas lógicas. Lo que hemos hecho ha sido, para cada clase, hacer un problema binario cogiendo todas las instancias de train de esa clase y una muestra del mismo tamaño de las demás, y pasarle después el resto de muestras de train como datos de test, esperando que para todas ellas devolviera que no pertenecen a la clase considerada:
 
@@ -439,13 +443,22 @@ predictOVA <- function(train, clases, numClases, test) {
 ```
 
 
+```{r}
+prediccionesPCA <- predictOVA(trainPCA10, CLASS.train, 10, testPCA10)
+cat("Porcentaje de acierto con 10 clases y PCA:", 
+    100*sum(prediccionesPCA == CLASS.test)/length(CLASS.test))
+```
+
+```{r}
+predicciones <- predictOVA(train10, CLASS.train, 10, test10)
+cat("Porcentaje de acierto con 10 clases sin PCA:", 
+    100*sum(predicciones == CLASS.test)/length(CLASS.test))
+```
+
+En este caso los porcentajes de acierto son más bajos y sí hay casi un 10% de diferencia entre utilizar PCA y no utilizarlo, con lo que descartamos para 10 clases usar PCA en el caso de paramétricos.
 
 
-
-
-
-
-NO PARAMÉTRICO:
+##6.2 Modelo no paramétrico:
 
 Para elegir entre KNN y RBF (funciones de base radial) vamos a volver a utilizar el índice *J* que habíamos calculado previamente para elegir entre regresión logística y SVM, ya que aquí también nos influye cómo de solapadas estén las clases, ya que si no hay solapamiento convendría más utilizar KNN ya que ahí los K vecinos más cercanos influyen lo mismo para elegir la clase, mientras que si hay solapamiento conviene más utilizar funciones de base radial para que influyan menos los valores que están más lejanos, ya que al tenerlos mezclados en la frontera, a un punto lo suficientemente cercano a la frontera le viene mejor que estos influyan menos a que los coja por igual el KNN. Además, al estar las clases solapadas usando KNN corremos el riesgo de que los K vecinos más cercanos no sean (en mayoría) de la clase del punto a clasificar. Este problema lo evitamos empleando base radial puesto que en ella todos los puntos tienen influencía, así por ejemplo pueden vencer puntos que estén algo más alejados del punto en cuestión pero que sean de la clase correcta.  
 
@@ -515,8 +528,15 @@ RBF <- function(x, datos.train, et.train, numClases, r) {
   sumas_parciales <- sapply(1:numClases, function(i) {
     sum(alfas[et.train == i])
   }) 
-  sumas_parciales <- sumas_parciales/suma_total
-  which.max(sumas_parciales)
+  if(suma_total != 0) {
+    sumas_parciales <- sumas_parciales/suma_total
+    max <- which.max(sumas_parciales)
+  }
+  else {
+    max <- 0
+  }
+  
+  return(max)
 }
 ```
 
@@ -543,19 +563,13 @@ cv.RBF <- function(datos.train, et.train, numClases, rango_r) {
   media_aciertos <- vector("numeric", length(rango_r))
   
   for(j in 1:length(rango_r)) {
-    cat("El r a probar es: ", rango_r[j], "\n")
     aciertos <- vector("numeric", k)
     for(i in 1:k) {
-      cat("Fold: ", i, "\n")
-      etiq <- unlist(predictEt(datos.train[folds != i, ], et.train[folds != i], 
-                datos.train[folds == i, ], numClases, rango_r[j]))
-      print(etiq)
+      etiq <- predictEt(datos.train[folds != i, ], et.train[folds != i], 
+                datos.train[folds == i, ], numClases, rango_r[j])
       aciertos[i] <- sum(etiq == et.train[folds == i])/length(etiq)
-      cat("aciertos[",i,"] =", aciertos[i], "\n")
     }
-    print(aciertos)
     media_aciertos[j] <- mean(aciertos)
-    print(media_aciertos[j])
   }
   
   return(rango_r[which.max(media_aciertos)])
@@ -563,10 +577,49 @@ cv.RBF <- function(datos.train, et.train, numClases, rango_r) {
 }
 ```
 
- 
 
+```{r}
+best_r <- cv.RBF(train, NSP.train, 3, seq(0.1, 1.5, 0.1))
+predicciones <- predictEt(train, NSP.train, test, 3, best_r)
+acierto <- sum(predicciones == NSP.test)/length(predicciones[predicciones != 0])
+no_clasificados <- length(predicciones[predicciones == 0])/length(predicciones)
+cat("El porcentaje de acierto para 3 clases sin PCA ha sido:", 100*acierto)
+cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
+```
 
+```{r}
+best_r <- cv.RBF(trainPCA, NSP.train, 3, seq(0.1, 1.5, 0.1))
+predicciones <- predictEt(trainPCA, NSP.train, testPCA, 3, best_r)
+acierto <- sum(predicciones == NSP.test)/length(predicciones[predicciones != 0])
+no_clasificados <- length(predicciones[predicciones == 0])/length(predicciones)
+cat("El porcentaje de acierto para 3 clases con PCA ha sido:", 100*acierto)
+cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
+```
 
+```{r}
+best_r <- cv.RBF(trainPCA10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
+predicciones <- predictEt(trainPCA10, CLASS.train, testPCA10, 10, best_r)
+acierto <- sum(predicciones == CLASS.test)/
+  length(predicciones[predicciones != 0])
+no_clasificados <- length(predicciones[predicciones == 0])/length(predicciones)
+cat("El porcentaje de acierto para 10 clases con PCA ha sido:", 100*acierto)
+cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
+```
+
+```{r}
+best_r <- cv.RBF(train10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
+predicciones <- predictEt(train10, CLASS.train, test10, 10, best_r)
+acierto <- sum(predicciones == CLASS.test)/
+  length(predicciones[predicciones != 0])
+no_clasificados <- length(predicciones[predicciones == 0])/length(predicciones)
+cat("El porcentaje de acierto para 10 clases sin PCA ha sido:", 100*acierto)
+cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
+```
+
+91.76471
+91.76471
+67.61905
+68.80952
 
 #7. Argumentar sobre la idoneidad de la función regularización usada (en su caso).
 
