@@ -16,7 +16,7 @@ library(fields)
 
 En este proyecto vamos a trabajar con una base da datos algo mayor que las que hemos venido usando en las prácticas (2126 instancias con 23 atributos cada una) con el objetivo de poner en práctica los conocimientos adquiridos en la asignatura para resolver un problema de clasificación del mundo real.
   
-La base de datos elegida es Cardiotocography del respositorio de bases de datos UCI la cual la podemos descargar \href{https://archive.ics.uci.edu/ml/datasets/Cardiotocography#}{\textbf{aquí}}. En esta base de datos se recogen distintas características de cardiotrogafías en las cuales se mide la frencuencia cardiaca fetal (FHR), los movimiento fetales (FM) y las contracciones uterinas (UC), obteniendo las siguientes características a partir de estos datos:
+La base de datos elegida es Cardiotocography del respositorio de bases de datos UCI la cual la podemos descargar \href{https://archive.ics.uci.edu/ml/datasets/Cardiotocography#}{\textbf{aquí}}. En esta base de datos se recogen distintas características de cardiotocografías en las cuales se mide la frencuencia cardiaca fetal (FHR), los movimientos fetales (FM) y las contracciones uterinas (UC), obteniendo las siguientes características a partir de estos datos:
 
 \begin{enumerate}
 \item LB: punto de referencia del FHR en pulsaciones por minuto.
@@ -44,23 +44,24 @@ La base de datos elegida es Cardiotocography del respositorio de bases de datos 
 \item NSP: código del estado fetal. [1: Normal, 2: Sospechoso y 3: Patológico]
 \end{enumerate}
 
-Lo que queremos es emplear estos datos para poder predecir ante una nueva cardiotocografía si el estado del feto es normal, sospecho o patológico, es decir, vamos a predecir la variable NSP con el resto. Además, vamos a hacer la clasificación también según la variable CLASS, puesto que también es una de las "preguntas" en la base de datos.  
+Lo que queremos es emplear estos datos para poder predecir ante una nueva cardiotocografía si el estado del feto es normal, sospecho o patológico, es decir, vamos a predecir la variable NSP con el resto. Además, vamos a hacer la clasificación también según la variable CLASS, puesto que también es uno de los problemas de la base de datos.  
 
 El enfoque elegido por tanto es hacer clasificación multiclase para clasificar nuevos datos según dos variables (por separado), una que tiene 3 clases y otra que tiene 10.
 
 ```{r}
+# Leemos los datos
 datos <- read.csv("datos.csv")
 ```
 
-#2. Codificación de los datos de entranda para hacerlos útiles a los algoritmos.
+#2. Codificación de los datos de entrada para hacerlos útiles a los algoritmos.
 
-Nuestra base de datos estaba contenida en una hoja de cálculo. Para poder usarla dentro de R lo que hemos hecho es generar un CSV con los datos previamente formateados puesto que hemos tenido que cambiar el formato decimal de algunas columnas para que fuese el que emplea R. Además en el fichero original aparecían más variables como la fehca y el tiempo de inicio y fin de la cardiotocografía las cuales no hemos considerado relevantes para el estudio por lo que no están presententes en el CSV.
+Nuestra base de datos estaba contenida en una hoja de cálculo. Para poder usarla dentro de R lo que hemos hecho es generar un CSV con los datos previamente formateados puesto que hemos tenido que cambiar el formato decimal de algunas columnas para que fuese el que emplea R. Además en el fichero original aparecían más variables como la fecha y el tiempo de inicio y fin de la cardiotocografía, las cuales no hemos considerado relevantes para el estudio por lo que no están presententes en el CSV.
 
 #3. Valoración del interés de las variables para el problema y selección de un subconjunto en su caso.
 
-En primer lugar tenemos que `Width` se calcula como la diferencia entre `Max` y `Min` con lo cual suponemos que una de las tres no tendrán relevancia ya que la información aportada por ella se puede deducir de las otras dos.  
+En primer lugar tenemos que `Width` se calcula como la diferencia entre `Max` y `Min` con lo cual suponemos que una de las tres no tendrá relevancia ya que la información aportada por ella se puede deducir de las otras dos.  
 
-Para el resto de variables dado el poco conocimiento que tenemos en la materia no podemos saber qué factores son los que más influyen en determinar el estado del feto por tanto hemos decidido realizar un análisis de componentes principales para ver si podemos reducir el número de variables a considerar, haciendo que los algoritmos sean mÃ¡s eficientes en tiempo. La técnica que hemos usado en clase para tal propósito ha sido emplear el Lasso para obtener aquellas variables que sus coeficientes estuviesen por encima de un cierto umbral determinado por nosotros. Esto precisamente es lo que nos ha llevado a decantarnos por el PCA ya que con él podemos saber el conjunto de variables que son capaces de explicar al menos 95% de la variabilidad de los datos (aunque podemos cambiar este 95% y aumentarlo para que sea más estricto). Para saber cómo emplear PCA en R hemos consultado el enlace [2] de la bibliografía.  
+Para el resto de variables dado el poco conocimiento que tenemos en la materia no podemos saber qué factores son los que más influyen en determinar el estado del feto por tanto hemos decidido realizar un análisis de componentes principales para ver si podemos reducir el número de variables a considerar, haciendo que los algoritmos sean más eficientes en tiempo. La técnica que hemos usado en clase para tal propósito ha sido emplear el Lasso para obtener aquellas variables que sus coeficientes estuviesen por encima de un cierto umbral determinado por nosotros. Esto precisamente es lo que nos ha llevado a decantarnos por el PCA ya que con él podemos saber el conjunto de variables que son capaces de explicar al menos 95% de la variabilidad de los datos (aunque podemos cambiar este 95% y aumentarlo para que sea más estricto). Para saber cómo emplear PCA en R hemos consultado el enlace [2] de la bibliografía.  
 
 Lo primero que vamos a hacer es separar los datos en las muestras de entrenamiento y test (80-20) que emplearemos a lo largo de todo el estudio. En esta ocasión como la variable a predecir no depende de la media de otras variables entonces vamos a poder realizar un particionado homogéneo de los datos para tener una distribución de las clases de cada muestra lo más uniforme posible (no corremos el riesgo de contaminar la variable con datos de test como un ocurría en prácticas).  
 
@@ -115,10 +116,11 @@ test10 <- datos[-train_idx,]
 ```
 
 
-Ahora vamos a quitar las variables `NSP` y `CLASS` de `train` y test, ya que son las salidas, y las vamos a guardar en dos vectores aparte.
+Ahora vamos a quitar las variables `NSP` y `CLASS` de `train` y `test`, ya que son las salidas, y las vamos a guardar en dos vectores aparte.
 
 ```{r}
 NSP.train <- train$NSP
+# Eliminamos las columnas correspondientes a las variables NSP y CLASS
 train <- train[,-c(22,23)]
 NSP.test <- test$NSP
 test <- test[,-c(22,23)]
@@ -137,7 +139,7 @@ summary(train)
 summary(train10)
 ```
 
-Como vemos, la variable DS tiene máximo y mínimo 0, con lo que es igual a 0 para todas las variables y por tanto no van a infuir para nuestro análisis en el conjunto de train. Lo que hacemos por tanto es quitarla de dicho conjunto.
+Como vemos, la variable DS tiene máximo y mínimo 0, con lo que es igual a 0 para todas las variables y por tanto no va a infuir para nuestro análisis en ninguno de los conjuntos de train. Lo que hacemos por tanto es quitarla tanto de train como de test.
 
 ```{r}
 # Quitamos la variable DS, que ocupa la sexta columna
@@ -147,13 +149,15 @@ train10 <- train10[,-6]
 test10 <- test10[,-6]
 ```
 
-Como hemos podido ver hay muchas que tienen valores cercanos a cero, pero sobre estos no podemos decir nada en claro, así que vamos a pasar a utilizar el algoritmo PCA. Para ello vamos a utilizar la función `prcomp` del paquete `stats` instalado por defecto en `R`.
+Como hemos podido ver hay muchas que tienen valores cercanos a cero, pero sobre estos no podemos afirmar nada en claro, así que vamos a pasar a utilizar el algoritmo PCA. Para ello vamos a utilizar la función `prcomp` del paquete `stats` instalado por defecto en `R`.  
 
-El análisis de componente principales (PCA) sigue la siguiente idea: nosotros podemos tener nuestras muestran con gran multitud de características, es decir, muestras con una elevada dimensión. Ahora bien pueden darse caso en que no todas estas características tengan la misma relevancia, no aporten la misma información. Por motivos de eficiencia computacional y obtener un modelo más sencillo es claro que es bueno reducir este número de variables, y esto es lo que hace el PCA. Buscamos una representación de los datos de dimensión más baja que capture toda (o una cantidad considerable) de la información. Un dimensión es interesante en términos de cómo las observaciones varían a lo largo de dicha dimensión.
+El análisis de componente principales (PCA) sigue la siguiente idea: nosotros podemos tener nuestras muestras con gran multitud de características, es decir, muestras con una elevada dimensión. Ahora bien, puede darse el caso de que no todas estas características tengan la misma relevancia, es decir, que no aporten la misma información. Por motivos de eficiencia computacional y obtener un modelo más sencillo es claro que es bueno reducir este número de variables, aunque sea a costa de perder algo de información, y esto es lo que hace el PCA. Buscamos una representación de los datos de dimensión más baja que capture toda (o una cantidad considerable) de la información. Un dimensión es interesante en términos de cómo las observaciones varían a lo largo de dicha dimensión.  
 
-Si nuestras muestras tienen el siguiente conjunto de características $X_1, X_2, ..., X_p$ entonces primer componente principal será $Z_1 = \phi_1X_1 + ... + \phi_pX_p$ y buscamos entoncecs una combinación lineal de las características anteriores, cumpliendo que el cuadrado de los coeficientes (*loadings*) sumen uno, que maximize la varianza, es decir, que maximice $\frac{1}{n}\sum_{i = 1}^n \left( \sum_{j = 1}^p \phi_{j1}x_{ij} \right)^2$ (estamos sumoniendo que las variables tienen media cero para estos cálculos). Señalar que la condición de normalización que le imponemos a los *loadings* es para que no ganemos máxima varianza simplemente haciéndolos crecer mucho. Para calcular el resto de componente principales se hace de la misma manera restringiendo además a que no estén correlados con los anteriores; que sean ortogonales (si vemos los *loadings* como vectores) a los anteriores.
+Si nuestras muestras tienen el siguiente conjunto de características $X_1, X_2, ..., X_p$ entonces la primera componente principal será $Z_1 = \phi_1X_1 + ... + \phi_pX_p$ y estamos buscando por tanto una combinación lineal de las características anteriores que maximize la varianza, cumpliendo que el cuadrado de los coeficientes (*loadings*) sumen uno, es decir, que maximice $\frac{1}{n}\sum_{i = 1}^n \left( \sum_{j = 1}^p \phi_{j1}x_{ij} \right)^2$ (estamos sumoniendo que las variables tienen media cero para estos cálculos). Señalar que la condición de normalización que le imponemos a los *loadings* es para que no ganemos máxima varianza simplemente haciéndolos crecer mucho. Para calcular el resto de componentes principales se hace de la misma manera restringiendo además a que no estén correlados con los anteriores: que sean ortogonales (si vemos los *loadings* como vectores) a los anteriores.  
 
-Ya hemos asumido antes que la media de cada variable es cero ya que sólo estamos interesados en la varianza y esto facilita los cálculos. Por otro lado, si no tenemos ninguna restricción que lo impida, es conveniente escalar las variables de modo que no tengan una más influencia que otra simplemente por la escala en la que está medida, por ejemplo si una variable da saltos de 1000 en 1000 y otra de 10 en 10, aunque los datos de la primera presenten menos varianza debido a la magnidtud de los datos ésta tendrá más influencia.
+Ya hemos asumido antes que la media de cada variable es cero ya que sólo estamos interesados en la varianza y esto facilita los cálculos. Por otro lado, si no tenemos ninguna restricción que lo impida, es conveniente escalar las variables de modo que no tenga una más influencia que otra simplemente por la escala en la que está medida, por ejemplo si una variable da saltos de 1000 en 1000 y otra de 10 en 10, aunque los datos de la primera presenten menos varianza debido a la magnitud de los datos ésta tendrá más influencia.  
+
+Por tanto, vamos a utilizar la función `prcomp()` diciéndole que queremos que la media de las variables sea cero con el parámetro `center = TRUE` y que escale las variables con el parámetro `scale = TRUE`.
 
 ```{r}
 pca.out <- prcomp(train, center = TRUE, scale = TRUE)
@@ -166,15 +170,17 @@ Veamos qué nos ha devuelto el PCA sobre 3 variables
 summary(pca.out)
 ```
 
-Como podemos ver con `summary()`, con las 14 primeras componentes principales estamos explicando un 96% de los datos, y son con las que nos vamos a quedar para hacer el estudio reducido y ver si hay mejora al utilizar PCA. Vamos a hacer entonces la combinación lineal que nos da PCA para obtener el nuevo conjunto de train. Vamos a ver el PCA para 10 clases:
+Como podemos ver con `summary()`, con las 14 primeras componentes principales estamos explicando un 96% de los datos, y son con las que nos vamos a quedar para hacer el estudio reducido y ver si hay mejora al utilizar PCA. Vamos a ver también el PCA para 10 clases:
 
 ```{r}
 summary(pca.out10)
 ```
 
-De nuevo con las 14 primeras componentes principales conseguimos explicar más del 96% de los datos, con lo que vamos a quedarnos también con las 14 primeras.
+De nuevo con las 14 primeras componentes principales conseguimos explicar más del 96% de los datos, con lo que vamos a quedarnos también con las 14 primeras. Vamos a hacer entonces la combinación lineal que nos da PCA para ambos conjuntos para obtener los nuevos conjuntos de train.
 
 ```{r}
+# Recorremos las combinaciones lineales devueltas por prcomp y las aplicamos
+# al conjunto de train.
 trainPCA <- apply(pca.out$rotation[, 1:14], 2, function(x) {
   apply(train, 1, function(y) {
     x%*%y
@@ -205,16 +211,20 @@ testPCA10 <- apply(pca.out10$rotation[ ,1:14], 2, function(x) {
 })
 ```
 
+Lo que vamos a hacer es realizar el estudio a partir de aquí tanto con PCA como sin PCA, ya que no tenemos una dimensión excesivamente grande como para no poder trabajar con ella, de forma que vamos a ver si en cada caso merece la pena utilizar PCA o no en términos de la cantidad de información que se pierda (que se traducirá en una peor predicción con los datos).
+
 #4. Normalización de las variables (en su caso).
 
 En el caso de modelos de aprendizaje que trabajan por similaridad, es decir, por distancia entre las muestras para asignar una clase a un dato (como son el KNN y las funciones de base radial) es conveniente normalizar las características de modo que evitemos que unas tengan más peso que otras en las decisiones del modelo, debido a las diferencias de magnitud.
 
-Entonces vamos a normalizar las variables antes de aplicar ningún modelo de aprendizaje para así trabajar con los mismos datos. Entonces vamos a proceder a normalizar los datos, para ello igual que hemos hecho en prácticas anteriores vamos a normalizar los datos de train y empleando los factores de normalización de dicho proceso normalizaremos los de test. De este modo no vamos a contaminar los datos de entrenamiento con información sobre los de test, asegurando que el proceso de aprendizaje se adecuado.
+Entonces vamos a normalizar las variables antes de aplicar ningún modelo de aprendizaje para así trabajar con los mismos datos. Vamos a proceder a normalizar los datos, para lo que, igual que hemos hecho en prácticas anteriores, vamos a normalizar los datos de train y empleando los factores de normalización de dicho proceso normalizaremos los de test. De este modo no vamos a contaminar los datos de entrenamiento con información sobre los de test, asegurando que el proceso de aprendizaje sea adecuado.
 
 ```{r}
+# Escalamos el conjunto de train
 train <- scale(train)
 medias <- attr(train, "scaled:center")
 escalados <- attr(train, "scaled:scale")
+# Escalamos el conjunto de test con los centros y las escalas del de train
 test <- scale(test, medias, escalados)
 
 trainPCA <- scale(trainPCA)
@@ -238,24 +248,14 @@ testPCA10 <- scale(testPCA10, medias, escalados)
 
 #5. Selección de las técnicas y valoración de la idoneidad de las mismas frente a otras alternativas.
 
-Es claro que no podemos plantearnos usar el perceptron ya que de inicio estamos antes un problema de clasifación no binaria con lo que no vamos a poder realizar una buena clasificación por medio de él.
+##5.1. Selección de técnicas paramétricas
+En cuanto a los modelos paramétricos, es claro que no podemos plantearnos usar el perceptron ya que de inicio estamos ante un problema de clasifación no binaria, con lo que no vamos a poder realizar una buena clasificación con él.  
 
-De entre los modelos paramétricos que hemos visto en la asignatura nos vamos a decantar por la regresión logística multinomial. Podríamos haber considerado el SVM de núcleo lineal pero no conocemos la naturaleza de los datos, con lo cual no tenemos seguridad de vayan a ser linealmente separables, entonces preferimos considerar un modelo el cual no dependa de la disposición espacial de los datos como es la regresión logística.
+Como podemos leer en el libro ISLR, regresión logística y SVM tienen funciones de pérdida muy parecidas, en consecuencia los rendimientos que ofrecen son muy parecidos. Ahora bien, lo que distingue a ambos en su comportamiento es el solapamiento que haya entre las distintas clases de la muestra. Así cuando tenemos un solamiento mayor la regresión logística muestra, experimentalmente, un mejor rendimiento que el SVM. En cambio cuando los datos son separables es el SVM el que se comporta mejor.  
 
-Por otro lado las funciones de base radial paramétricas no nos parecen una buena opción ya que dependen fuertemente de cómo estén distribuidos los datos, es decir, les ocurre como al KNN; si tenemos puntos próximos al punto a etiquetar de clase distinta a la real del punto entonces la clasificación no será buena. En cambio pensamos que dado que la regresión logística nos da una visión probabilística del etiquetado será más robusta a estas situaciones.
+Podríamos pensar en que SVM cuenta con la potencia que le aportan los núcleos, no obstante si el solapamiento entre las clases es considerable ningún núcleo será el adecuado, es decir, no tendríamos seguridad de que SVM funcione mejor.  
 
-A continuación vamos a explicar cómo funciona la regresion logística multinomial:  
-TODO
-
-
-
-#6. Aplicación de las técnicas especificando claramente qué algoritmos se usan en la estimación de los parámetros, los hiperparámetros y el error de generalización.
-
-Como podemos leer en el libro ISLR regresión logística y SVM tienen funciones de pérdida muy parecidas, en consecuencia los rendimientos que ofrecen son muy parecidos. Ahora bien lo que distingue a ambos en su comportamiento según el solapamiento que haya entre las distintas clases de la muestra. Así cuando tenemos un solamiento mayor la regresión logística muestra, experimentalmente, un mejor rendimiento que el SVM. En cambio cuando los datos son separables es el SVM el que se comporta mejor.
-
-Podríamos pensar en que SVM cuenta con la potencia que le aportan los núcleos, no obstante si el solapamiento entre las clases es considerable ningún núcleo será el adecuado, es decir, no tendríamos seguridad de que SVM funcione mejor.
-
-Por tanto para decidirnos vamos a medir el solapamiento entre las distintas clases, esto lo haremos mediante la métrica CSM que se basa en realizar un cociente entre las distancias de los puntos de cada clase al punto medio de su clase con las distancias entre los puntos medios de las clases al punto medio de la muestra total. Así si las primeras son muy grandes el índice, J (que es este cociente), será pequeño indicando que hay solapamiento entre las clases, ya que por decirlo de alguna manera las clases están más dispersas que la muestra, indicando que efectivamente han de estar entremezcladas. Haciendo varios experimentos nos hemos dado cuenta de que si las clases están separadas pero juntas este índice el 0.5. Si las clases están separadas y además hay separación entre ellas J será mayor que 0.5 (y mayor cuanta más separación haya) y si las clases están solapadas J será menor que 0.5. Este estudio lo hemos sacado gracias a los enlaces [4] y [5].
+Por tanto para decidirnos vamos a medir el solapamiento entre las distintas clases. Esto lo haremos mediante la métrica CSM que se basa en realizar un cociente entre las distancias de los puntos de cada clase al punto medio de su clase con las distancias entre los puntos medios de las clases al punto medio de la muestra total. Así si las primeras son muy grandes el índice, J (que es este cociente), será pequeño indicando que hay solapamiento entre las clases, ya que por decirlo de alguna manera las clases están más dispersas que la muestra, indicando que efectivamente han de estar entremezcladas. Haciendo varios experimentos nos hemos dado cuenta de que si las clases están separadas pero juntas este índice el 0.5. Si las clases están separadas y además hay separación entre ellas J será mayor que 0.5 (y mayor cuanta más separación haya) y si las clases están solapadas J será menor que 0.5. Este estudio lo hemos sacado gracias a los enlaces [4] y [5].
 
 A continuación mostramos el código de la función que nos medirá este índice de solapamiento para una muestra dada:
 
@@ -299,77 +299,19 @@ classSepMeasure(train, NSP.train, 3, 20)
 classSepMeasure(trainPCA, NSP.train, 3, 14)
 ```
 
-Como vemos, este índice es menor que 0.5 en todos los casos, pero es que además cuando tenemos en cuenta 3 clases en lugar de 10 (`NSP`) este índice es un poco mayor que 0.1 sin PCA y 0.05 con PCA, con lo que las clases están muy solapadas y por tanto nos vamos a decantar por la regresión logística en ambos casos, tanto con 10 clases como con 3.
+Como vemos, este índice es menor que 0.5 en todos los casos, pero es que además cuando tenemos en cuenta 3 clases en lugar de 10 (`NSP`) este índice es un poco mayor que 0.1 sin PCA y 0.05 con PCA, con lo que las clases están muy solapadas y por tanto nos vamos a decantar por la regresión logística en ambos casos, tanto con 10 clases como con 3. 
 
-Empezamos haciendo el análisis para las 3 clases, es decir, según la variable `NSP`, y además empezamos haciéndolo con la transformación que nos ha dado PCA.
+Por otro lado las funciones de base radial paramétricas no nos parecen una buena opción ya que dependen fuertemente de cómo estén distribuidos los datos, es decir, les ocurre como al KNN; si tenemos puntos próximos al punto a etiquetar de clase distinta a la real del punto entonces la clasificación no será buena. En cambio pensamos que dado que la regresión logística nos da una visión probabilística del etiquetado será más robusta a estas situaciones.  
 
-Para ello, vamos a utilizar regresión logística con regularización weigth-decay con el paquete `glmnet`. Como sabemos, hay un coeficiente, $\lambda$, que regula la influencia que tiene la condición de regularización (de "contracción") en el ajuste. Para elegir dicho $\lambda$ vamos a hacer validación cruzada con el mismo paquete haciendo uso de la función `cv.glmnet`, que nos devuelve justo el mejor $\lambda$ encontrado entre una rejilla. Esta validación cruzada la vamos a hacer con cinco particiones especificándolo con la variable `nfolds = 5` indicando que la regularización que queremos hacer es weight-decay (que se especifica con el parámetro `alpha = 0`). El porqué hemos elegido esta regularización está explicado en la sección dedicada para ello, la número 7. Además, como tenemos 3 clases y la clasificación no es binaria vamos a especificar con el parámetro `family = "multinomial"` que queremos hacer clasificación multiclase. Vamos a hacer que elija como $\lambda$ aquel que minimice la media de los errores cuadráticos, para lo que tenemos que poner como argumento a la función `type.measure = "mse"`.
+A continuación vamos a explicar cómo funciona la regresion logística multinomial.
+Lo que hace es basarse en la regresión logística binaria utilizando el *uno contra todos* o *one versus all*, de forma que para cada clase se divide el conjunto entre las instancias que pertenecen a mi clase y todas las demás y en estas dos clases artificiales se utiliza la regresión logística binaria. De esta forma cuando nos llega un nuevo dato se calcula la probabilidad de que pertenezca a cada clase (es decir, para cada clase se calcula la probabilidad de que pertenezca a esa clase en lugar de a todas las demás) y nos quedamos con el máximo de estas probabilidades, obteniendo así la clase de dato con una cierta probabilidad. En cuanto a la regresión binomial, para obtener la probabilidad de que un dato pertenezca a una determinada clase se utiliza la función logística, que devuelve un número entre 0 y 1 y es la siguiente: $p(X) = \frac{e^{\beta_0 +
+\beta_1 X_1 + ... + \beta_n X_n}}{1+e^{\beta_0 + \beta_1 X_1 +...+ \beta_n X_n}}$ suponiendo que haya $n$ variables con las que predecir.  
 
-```{r}
-# Fijamos primero la semilla ya que la partición para cross validation es 
-# aleatoria.
-set.seed(1)
-cv.fit <- cv.glmnet(as.matrix(trainPCA), NSP.train, alpha = 0, 
-                    family = "multinomial", nfolds = 5, type.measure = "mse")
-lambda <- cv.fit$lambda.min
-print(lambda)
-```
+Ahora, tenemos que ajustar los coeficientes $\beta_0, \beta_1,..., \beta_n$ y la forma en que lo hace el paquete `glmnet`, que es el que vamos a utilizar para la regresión binomial, es utilizando el método de máxima verosimilitud. La idea básica de este método es buscar estimaciones para cada $\beta_i$ de forma que la probabilidad predicha para cada individuo sea tan parecida como sea posible a su etiqueta real, teniendo en cuenta que toma las etiquetas o 0 o 1, de forma que se le da una probabilidad lo más cerca a 0 si la etiqueta es 0 y lo más cercana posible a 1 si la etiqueta es 1, es decir, se intenta maximizar la función de verosimilitud: $\prod_{i:y_i = 1} p(x_i) \prod_{i':y_i' = 0} (1-p(x_i'))$.  
 
-Vamos a pintar, para todos los valores de $\lambda$ que ha tomado `cv.glmnet()`, el logaritmo de dichos valores en el eje X y el error cuadrático medio para ese valor de $\lambda$ en el eje Y:
+Aunque el paquete `glmnet` permite hacer regresión multinomial con el parámetro `family`, hemos tenido problemas a la hora de clasificar con 10 clases, ya que nos devolvía siempre la misma clase para todos los datos a predecir. Tras hacer un pequeño estudio para descubrir si el problema era que las etiquetas no tenían correlación realmente con los datos o si era problema de la función considerada, que desarrollamos a continuación, nos dimos cuenta de que no era problema de los datos y lo que hemos hecho es programar nosotros la regresión multinomial del modo que se ha explicado anteriormente, y esta ha sido la que hemos utilizado ya tanto para 3 clases como para 10.  
 
-```{r}
-plot(cv.fit)
-```
-
-Como vemos, el logaritmo del valor de $\lambda$ que nos ha salido, `r log(lambda)`, coincide con el mínimo valor de los errores cuadráticos medios.
-
-
-EXPLICAR QUÉ HACE GLMNET. TODO
-
-
-```{r}
-
-modeloPCA3 <- glmnet(as.matrix(trainPCA), NSP.train, alpha = 0, 
-                     family = "multinomial", lambda = lambda)
-predicciones <- predict(modeloPCA3, s=lambda, newx = testPCA, type="response")
-```
-
-Esto devuelve para cada nuevo dato la probabilidad de que pertenezca a cada clase. Lo que vamos a hacer ahora es quedarnos con aquella clase a la que corresponda la máxima probabilidad y devolver dicha clase.
-
-```{r}
-data <- as.matrix(data.frame(predicciones))
-clases.predichas <- apply(data, 1, function(x) {
-  which.max(x)
-})
-cat("Porcentaje de acierto sobre 3 clases con PCA:", 
-    100*sum(clases.predichas == NSP.test)/length(NSP.test))
-```
-
-Vamos a hacerlo ahora sin PCA a ver la diferencia que hay con PCA, a ver si merece la pena bajar las dimensiones porque no se pierde mucha información o por el contrario no merece la pena porque sale una predicción mucho mejor con todas las variables (en nuestro caso que tampoco tenemos muchas variables y podemos permitirnos hacer este estudio).
-
-```{r}
-# Fijamos primero la semilla ya que la partición para cross validation es 
-# aleatoria.
-set.seed(1)
-cv.fit <- cv.glmnet(as.matrix(train), NSP.train, alpha = 0, 
-                    family = "multinomial", nfolds = 5, type.measure = "mse")
-lambda <- cv.fit$lambda.min
-modelo3 <- glmnet(as.matrix(train), NSP.train, alpha = 0, 
-                     family = "multinomial", lambda = lambda)
-predicciones <- predict(modelo3, s=lambda, newx = test, type="response")
-
-data <- as.matrix(data.frame(predicciones))
-clases.predichas <- apply(data, 1, function(x) {
-  which.max(x)
-})
-cat("Porcentaje de acierto sobre 3 clases sin PCA:", 
-    100*sum(clases.predichas == NSP.test)/length(NSP.test))
-
-```
-
-Como vemos el porcentaje de acierto es similar: es un 2% mayor. Sin embargo, en el problema que nos ocupa, quizás sí sea una diferencia significativa. Aunque en realidad teniendo en cuenta el porcentaje de acierto, que tampoco es muy alto, quizás habría que centrarse primero en mejorarlo cambiando de técnica (mejorando con técnicas no paramétricas como vamos a hacer a continuación) que preocuparse por ese 2%. TODO GORDO.
-
-Vamos ahora a enfocar el problema desde las 10 clases. En este caso hemos tenido problemas con el paquete `glmnet` ya que nos devolvía siempre la misma clase. No sabíamos si esto era así porque no había relación entre las etiquetas y los datos realmente o porque el paquete no funcionaba bien con tantas clases o en este problema en concreto por causas ajenas a nosotros, por lo que hemos hecho un experimento a ver si tratándolo como un problema binario del tipo *uno contra todos* (OVA) nos devuelve salidas lógicas. Lo que hemos hecho ha sido, para cada clase, hacer un problema binario cogiendo todas las instancias de train de esa clase y una muestra del mismo tamaño de las demás, y pasarle después el resto de muestras de train como datos de test, esperando que para todas ellas devolviera que no pertenecen a la clase considerada:
+El estudio que hemos hecho ha sido el siguiente: para cada clase, hacer un problema binario cogiendo todas las instancias de train de esa clase y una muestra del mismo tamaño de las demás, y pasarle después el resto de muestras de train como datos de test, esperando que para todas ellas devolviera que no pertenecen a la clase considerada:
 
 ```{r}
 for (i in 1:10) {
@@ -408,57 +350,9 @@ for (i in 1:10) {
 }
 ```
 
-Como vemos devuelve cosas lógicas en tanto que los porcentajes de acierto son relativamente altos, con lo que el problema no es que las etiquetas no tengan relación con los datos. Lo que vamos a hacer entonces es programar para este caso nosotros la clasificación multiclase haciendo un OVA con regresión logística binaria utilizando para la binaria el paquete `glmnet`.
+Como vemos devuelve cosas lógicas en tanto que los porcentajes de acierto son relativamente altos, con lo que el problema no es que las etiquetas no tengan relación con los datos.
 
-```{r}
-generarOVA <- function(train, clase, clases) {
-  # Asignamos como etiquetas 1 si pertenece a la clase considerada y 0 si no.
-  train.CLASS.OVA <- clases
-  train.CLASS.OVA[clases == clase] <- 1
-  train.CLASS.OVA[clases != clase] <- 0
-  
-  # Hacemos cross validation para el problema binomial
-  cv.fit <- cv.glmnet(as.matrix(train), train.CLASS.OVA, alpha = 0, 
-                      family = "binomial", type.measure = "mse")
-  lambda <- cv.fit$lambda.min
-  # Entrenamos un modelo binomial
-  modelo <- glmnet(as.matrix(train), train.CLASS.OVA, alpha = 0, 
-                   lambda = lambda, family="binomial")
-  return(list(modelo, lambda))
-}
-
-predictOVA <- function(train, clases, numClases, test) {
-  prediccionesOVA <- matrix(0, nrow(test), numClases)
-  for (i in 1:numClases) {
-    Mi <- generarOVA(train, i, clases)
-    modeloi <- Mi[[1]]
-    lambdai <- Mi[[2]]
-    prediccionesOVA[,i] <- predict(modeloi, s=lambdai, newx = test, 
-                                   type = "response")
-  }
-  
-  clases.predichas <- apply(prediccionesOVA, 1, which.max)
-  return(clases.predichas)
-}
-```
-
-
-```{r}
-prediccionesPCA <- predictOVA(trainPCA10, CLASS.train, 10, testPCA10)
-cat("Porcentaje de acierto con 10 clases y PCA:", 
-    100*sum(prediccionesPCA == CLASS.test)/length(CLASS.test))
-```
-
-```{r}
-predicciones <- predictOVA(train10, CLASS.train, 10, test10)
-cat("Porcentaje de acierto con 10 clases sin PCA:", 
-    100*sum(predicciones == CLASS.test)/length(CLASS.test))
-```
-
-En este caso los porcentajes de acierto son más bajos y sí hay casi un 10% de diferencia entre utilizar PCA y no utilizarlo, con lo que descartamos para 10 clases usar PCA en el caso de paramétricos.
-
-
-##6.2 Modelo no paramétrico:
+##5.2. Selección de técnicas no paramétricas
 
 Para elegir entre KNN y RBF (funciones de base radial) vamos a volver a utilizar el índice *J* que habíamos calculado previamente para elegir entre regresión logística y SVM, ya que aquí también nos influye cómo de solapadas estén las clases, ya que si no hay solapamiento convendría más utilizar KNN ya que ahí los K vecinos más cercanos influyen lo mismo para elegir la clase, mientras que si hay solapamiento conviene más utilizar funciones de base radial para que influyan menos los valores que están más lejanos, ya que al tenerlos mezclados en la frontera, a un punto lo suficientemente cercano a la frontera le viene mejor que estos influyan menos a que los coja por igual el KNN. Además, al estar las clases solapadas usando KNN corremos el riesgo de que los K vecinos más cercanos no sean (en mayoría) de la clase del punto a clasificar. Este problema lo evitamos empleando base radial puesto que en ella todos los puntos tienen influencía, así por ejemplo pueden vencer puntos que estén algo más alejados del punto en cuestión pero que sean de la clase correcta.  
 
@@ -509,6 +403,92 @@ Vamos a utilizar por tanto funciones de base radial. A continuación vemos la imp
 
 Vamos a hacer primero una función para hacer la clasificación con las funciones de base radial, donde en lugar de hacer la media de las distancias con las etiquetas, lo que vamos a hacer es sumar pesos que irán en función de *r* y el punto de test en cuestión. Donde *r* es la anchura que le vamos a dar a las gaussianas, que va a ser un valor que vamos a obtener por validación cruzada más adelante.
 
+
+#6. Aplicación de las técnicas especificando claramente qué algoritmos se usan en la estimación de los parámetros, los hiperparámetros y el error de generalización.
+
+Empezamos haciendo el análisis para las 3 clases, es decir, según la variable `NSP`, y además empezamos haciéndolo con la transformación que nos ha dado PCA.
+
+Para ello, vamos a utilizar regresión logística con regularización weigth-decay con el paquete `glmnet`. Como sabemos, hay un coeficiente, $\lambda$, que regula la influencia que tiene la condición de regularización (de "contracción") en el ajuste. Para elegir dicho $\lambda$ vamos a hacer validación cruzada con el mismo paquete haciendo uso de la función `cv.glmnet`, que nos devuelve justo el mejor $\lambda$ encontrado entre una rejilla. Esta validación cruzada la vamos a hacer con cinco particiones especificándolo con la variable `nfolds = 5` indicando que la regularización que queremos hacer es weight-decay (que se especifica con el parámetro `alpha = 0`). El porqué hemos elegido esta regularización está explicado en la sección dedicada para ello, la número 7. Vamos a hacer que elija como $\lambda$ aquel que minimice la media de los errores cuadráticos, para lo que tenemos que poner como argumento a la función `type.measure = "mse"`.  
+
+Como hemos comentado, vamos a programar la regresión logística multinomial haciendo uso de `glmnet` para la binomial:
+
+```{r}
+generarOVA <- function(train, clase, clases) {
+  # Asignamos como etiquetas 1 si pertenece a la clase considerada y 0 si no.
+  train.CLASS.OVA <- clases
+  train.CLASS.OVA[clases == clase] <- 1
+  train.CLASS.OVA[clases != clase] <- 0
+  
+  # Hacemos cross validation para el problema binomial
+  cv.fit <- cv.glmnet(as.matrix(train), train.CLASS.OVA, alpha = 0, 
+                      family = "binomial", type.measure = "mse")
+  lambda <- cv.fit$lambda.min
+  # Entrenamos un modelo binomial
+  modelo <- glmnet(as.matrix(train), train.CLASS.OVA, alpha = 0, 
+                   lambda = lambda, family="binomial")
+  return(list(modelo, lambda))
+}
+
+predictOVA <- function(train, clases, numClases, test) {
+  prediccionesOVA <- matrix(0, nrow(test), numClases)
+  for (i in 1:numClases) {
+    Mi <- generarOVA(train, i, clases)
+    modeloi <- Mi[[1]]
+    lambdai <- Mi[[2]]
+    prediccionesOVA[,i] <- predict(modeloi, s=lambdai, newx = test, 
+                                   type = "response")
+  }
+  
+  clases.predichas <- apply(prediccionesOVA, 1, which.max)
+  return(clases.predichas)
+}
+```
+
+Lo utilizamos con 3 clases y PCA:
+
+```{r}
+# Fijamos una semilla
+prediccionesPCA3RL <- predictOVA(trainPCA, NSP.train, 3, testPCA)
+cat("Porcentaje de acierto con 3 clases y PCA:", 
+    100*sum(prediccionesPCA3RL == NSP.test)/length(NSP.test))
+```
+
+Obtenemos un porcentaje de acierto de 85.88, lo que no está mal teniendo en cuenta que las clases están solapadas y es un modelo paramétrico.  
+
+Vamos a hacerlo ahora sin PCA a ver la diferencia que hay con PCA, a ver si merece la pena bajar las dimensiones porque no se pierde mucha información o por el contrario no merece la pena porque sale una predicción mucho mejor con todas las variables (en nuestro caso que tampoco tenemos muchas variables y podemos permitirnos hacer este estudio).
+
+```{r}
+predicciones3RL <- predictOVA(train, NSP.train, 3, test)
+cat("Porcentaje de acierto con 3 clases sin PCA:", 
+    100*sum(predicciones3RL == NSP.test)/length(NSP.test))
+```
+
+Como vemos el porcentaje de acierto es similar: es un 4% mayor. Sin embargo, en el problema que nos ocupa, quizás sí sea una diferencia significativa. Aunque en realidad teniendo en cuenta el porcentaje de acierto, que tampoco es muy alto, quizás habría que centrarse primero en mejorarlo cambiando de técnica (mejorando con técnicas no paramétricas como vamos a hacer a continuación) que preocuparse por ese 4%.   
+  
+
+Vamos ahora a enfocar el problema desde las 10 clases. Lo hacemos primero con PCA y después sin PCA:
+
+```{r}
+prediccionesPCA10RL <- predictOVA(trainPCA10, CLASS.train, 10, testPCA10)
+cat("Porcentaje de acierto con 10 clases y PCA:", 
+    100*sum(prediccionesPCA10RL == CLASS.test)/length(CLASS.test))
+```
+
+```{r}
+predicciones10RL <- predictOVA(train10, CLASS.train, 10, test10)
+cat("Porcentaje de acierto con 10 clases sin PCA:", 
+    100*sum(predicciones10RL == CLASS.test)/length(CLASS.test))
+```
+
+En este caso los porcentajes de acierto son más bajos y sí hay más de un 10% de diferencia entre utilizar PCA y no utilizarlo, con lo que descartamos para 10 clases usar PCA en el caso de paramétricos.
+
+
+##6.2 Modelo no paramétrico:
+
+Como hemos dicho en la sección 5, nos decantamos por utilizar las funciones de base radial. En este caso no hemos encontrado un paquete de `R` que las tuviera implementadas, y como además las tenemos que modificar para adaptarlas a clasificación, hemos optado por programarlas nosotros.  
+
+Lo que hacemos es construir primero una función que nos devuelva una gaussiana normalizada para *d* dimensiones y utilizarla para *colocar* una en cada dato de train. Cada gaussiana tendrá una anchura `r` que elegiremos luego por validación cruzada. Lo que hacemos es calcular para cada dato de test la gaussiana de la distancia entre dicho dato de test y todos los de train, de forma que obtenemos unos pesos para cada dato de train. Posteriormente sumamos los pesos por etiquetas (todos los pesos para los datos de train que tengan clase 1, para los de clase 2, etc.) y nos quedamos con la etiqueta que tenga mayor suma (normalizando por el total de pesos), de forma que estamos haciendo clasificación. Si se da el caso de que las sumas de los pesos es 0, no clasificamos dicho dato, asignándole la etiqueta 0.
+
 ```{r}
 #FUNCIONES DE BASE RADIAL
 
@@ -517,17 +497,22 @@ fiD <- function(d){
   function(z) {exp(-0.5 * z^2)/((2*pi)^(-d/2))}
 }
 
+# Función para calcular la distancia entre dos puntos
 distancia <- function(x, y) {
   sqrt(sum((x-y)^2))
 }
 
 RBF <- function(x, datos.train, et.train, numClases, r) {
+  # Calculamos la gaussiana
   fi <- fiD(ncol(datos.train))
+  # Calculamos los pesos
   alfas <- apply(datos.train, 1, function(y) { fi(distancia(x,y)/r) } )
   suma_total  <- sum(alfas)
+  # Sumamos por clases
   sumas_parciales <- sapply(1:numClases, function(i) {
     sum(alfas[et.train == i])
   }) 
+  # Nos quedamos con el máximo en caso de que lo haya
   if(suma_total != 0) {
     sumas_parciales <- sumas_parciales/suma_total
     max <- which.max(sumas_parciales)
@@ -540,6 +525,8 @@ RBF <- function(x, datos.train, et.train, numClases, r) {
 }
 ```
 
+A continuación creamos una función para predecir las clases para un conjunto completo de test, llamando a la función anterior una vez por cada dato de test:
+
 ```{r}
 predictEt <- function(datos.train, et.train, datos.test, numClases, r) {
   etiquetas <- sapply(1:nrow(datos.test), function(i) {
@@ -548,6 +535,8 @@ predictEt <- function(datos.train, et.train, datos.test, numClases, r) {
   return(etiquetas)
 }
 ```
+
+Como hemos comentado antes, vamos a hacer validación cruzada para elegir el mejor *r* de entre un rango de valores que se le va a pasar a la función por parámetros, que vamos a programar nosostros también. Lo que hace esta función es dividir el conjunto de train en 5 subconjuntos con los que se hará la validación cruzada (de forma equilibrada) y, para cada *r*, hacer la media del porcentaje de acierto obtenido para cada partición. Después, devuelve la *r* con la que se ha obtenido la mejor media.  
 
 ```{r}
 cv.RBF <- function(datos.train, et.train, numClases, rango_r) {
@@ -577,58 +566,136 @@ cv.RBF <- function(datos.train, et.train, numClases, rango_r) {
 }
 ```
 
+Hacemos ahora, para 3 clases y para 10, con PCA y sin PCA, las funciones de base radial con previa validación cruzada para *r*.
 
 ```{r}
+# Fijamos primero la semilla
+set.seed(1)
 best_r <- cv.RBF(train, NSP.train, 3, seq(0.1, 1.5, 0.1))
-predicciones <- predictEt(train, NSP.train, test, 3, best_r)
-acierto <- sum(predicciones == NSP.test)/length(predicciones[predicciones != 0])
-no_clasificados <- length(predicciones[predicciones == 0])/length(predicciones)
+predicciones3RBF <- predictEt(train, NSP.train, test, 3, best_r)
+acierto <- sum(predicciones3RBF== NSP.test)/
+  length(predicciones3RBF[predicciones3RBF != 0])
+no_clasificados <- length(predicciones3RBF[predicciones3RBF == 0])/
+  length(predicciones3RBF)
 cat("El porcentaje de acierto para 3 clases sin PCA ha sido:", 100*acierto)
 cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
 
 ```{r}
 best_r <- cv.RBF(trainPCA, NSP.train, 3, seq(0.1, 1.5, 0.1))
-predicciones <- predictEt(trainPCA, NSP.train, testPCA, 3, best_r)
-acierto <- sum(predicciones == NSP.test)/length(predicciones[predicciones != 0])
-no_clasificados <- length(predicciones[predicciones == 0])/length(predicciones)
+prediccionesPCA3RBF <- predictEt(trainPCA, NSP.train, testPCA, 3, best_r)
+acierto <- sum(prediccionesPCA3RBF == NSP.test)/
+  length(prediccionesPCA3RBF[prediccionesPCA3RBF != 0])
+no_clasificados <- length(prediccionesPCA3RBF[prediccionesPCA3RBF == 0])/
+  length(prediccionesPCA3RBF)
 cat("El porcentaje de acierto para 3 clases con PCA ha sido:", 100*acierto)
 cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
 
 ```{r}
 best_r <- cv.RBF(trainPCA10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
-predicciones <- predictEt(trainPCA10, CLASS.train, testPCA10, 10, best_r)
-acierto <- sum(predicciones == CLASS.test)/
-  length(predicciones[predicciones != 0])
-no_clasificados <- length(predicciones[predicciones == 0])/length(predicciones)
+prediccionesPCA10RBF <- predictEt(trainPCA10, CLASS.train, testPCA10, 10, best_r)
+acierto <- sum(prediccionesPCA10RBF == CLASS.test)/
+  length(prediccionesPCA10RBF[prediccionesPCA10RBF != 0])
+no_clasificados <- length(prediccionesPCA10RBF[prediccionesPCA10RBF == 0])/
+  length(prediccionesPCA10RBF)
 cat("El porcentaje de acierto para 10 clases con PCA ha sido:", 100*acierto)
 cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
 
 ```{r}
 best_r <- cv.RBF(train10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
-predicciones <- predictEt(train10, CLASS.train, test10, 10, best_r)
-acierto <- sum(predicciones == CLASS.test)/
-  length(predicciones[predicciones != 0])
-no_clasificados <- length(predicciones[predicciones == 0])/length(predicciones)
+predicciones10RBF <- predictEt(train10, CLASS.train, test10, 10, best_r)
+acierto <- sum(predicciones10RBF == CLASS.test)/
+  length(predicciones10RBF[predicciones10RBF != 0])
+no_clasificados <- length(predicciones10RBF[predicciones10RBF == 0])/
+  length(predicciones10RBF)
 cat("El porcentaje de acierto para 10 clases sin PCA ha sido:", 100*acierto)
 cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
 
-91.76471
-91.76471
-67.61905
-68.80952
+Como vemos, tenemos resultados mejores que con la técnica paramétrica tanto para 3 clases como para 10, y la diferencia entre PCA y sin PCA es mucho menos notable. Concretamente, para 3 clases logramos pasar el 90% de acierto, lo que consideramos que es un muy buen porcentaje.
 
 #7. Argumentar sobre la idoneidad de la función regularización usada (en su caso).
 
+La regularización que hemos empleado es la ridge regression. Nosotros hemos visto dos formas principales de regresión: LASSO y ridge regression. La diferencia entre ambas es su condición de regularización. La primer minimiza la suma de los valores absolutos de los coeficientes de regresión mientras que la segunda minimiza la suma de sus cuadrados. Esta diferencia deriva en que mientras que LASSO puede dar lugar a emplear coeficientes nulos, descartando variables (se realiza una selección automática de características) la ridge regression puede dar coeficientes muy próximos a cero pero no nulos, es decir, no realiza selección de características.  
+
+Nos hemos decantado por ridge regression dado que ya hacemos una especie de selección de características con PCA quedándonos con aquellos componentes principales que recogen algo más del 95% de la información y no queremos sacrificar más información que esta al usar el LASSO, además hemos hecho una comparativa con los resultados obtenidos usando PCA y sin usarlo con lo que para ambos casos empleamos el mismo tipo de regularizacion.
 
 #8. Valoración de los resultados (gráficas, métricas de error, análisis de residuos, etc.)
 
+```{r}
+getMatrizConfusion <- function(et.predichas, et.reales, numClases) {
+  M <- matrix(0, numClases, numClases)
+  for (i in seq(numClases)) {
+    for (j in seq(numClases)) {
+      M[i,j] = sum(et.predichas == i & et.reales == j)
+    }
+  }
+  
+  M
+}
+```
+Vamos a generar las matrices de confusión para los distintos experimentos que hemos realizado:
+
+```{r}
+M3RL <- getMatrizConfusion(predicciones3RL, NSP.test, 3)
+MPCA3RL <- getMatrizConfusion(prediccionesPCA3RL, NSP.test, 3)
+M10RL <- getMatrizConfusion(predicciones10RL, CLASS.test, 10)
+MPCA10RL <- getMatrizConfusion(prediccionesPCA10RL, CLASS.test, 10)
+```
 
 #9. Justificar que se ha obtenido la mejor de las posibles soluciones con la técnica elegida y la muestra dada. Argumentar en términos de la dimensión VC del modelo, el error de generalización y las curvas de aprendizaje.
 
+
+
+#10. Comparativa con otros resultados sobre la misma base de datos
+
+Hemos encontrado diversos documentos donde se muestran experimentos con distintas técnicas y enfoques sobre nuestra base de datos así que a continuación vamos a mostrar tales resultados que compararemos con los resultados.
+
+En un primer documento se realiza una simplificación del problema puesto que pasa de los tres valores que puede tomar NSP a sólo dos pasando a un problema de clasificación binaria que son los que hemos tratado en esta asignatura. Así agrupa en la clase *No-normal* a aquellas muestras etiquetadas como sospechosas o anormal. Así tras esta agrupación y empleando kNN obtiene la siguiente matriz de confusión (referencia [9]):
+
+| Matriz de confusión |           | Clase predicha |           |
+|---------------------|-----------|----------------|-----------|
+|                     |           | Normal         | No-normal |
+| Clase               | Normal    | 12413          | 4137      |
+| verdadera           | No-normal | 9202           | 37898     |
+
+En el siguiente documento que hemos consultado (referencia [10]) se muestra un estudio de cómo se comportan distintos algoritmos empleando técnicas de AdaBoost y sin él, a continuacion mostramos las dos tablas, primero sin AdaBoost y después con él:
+
+| Algoritmo                                  | MAE   | Kappa | Acc. (%) |
+|--------------------------------------------|-------|-------|----------|
+| Redes de funciones de base radial (param.) | 0.123 | 0.642 | 85.983   |
+| SVM                                        | 0.250 | 0.674 | 88.758   |
+| Redes neuronales                           | 0.058 | 0.784 | 92.098   |
+| Árboles de decisión                        | 0.059 | 0.793 | 92.457   |
+
+
+| Algoritmo                                  | MAE   | Kappa | Acc. (%) |
+|--------------------------------------------|-------|-------|----------|
+| Redes de funciones de base radial (param.) | 0.103 | 0.668 | 87.676   |
+| SVM                                        | 0.098 | 0.673 | 88.664   |
+| Redes neuronales                           | 0.069 | 0.783 | 92.051   |
+| Árboles de decisión                        | 0.034 | 0.861 | 95.014   |
+
+Tenemos también la matriz de confusión para los árboles de decisión:
+
+|            | Predichos |            |            |
+|------------|-----------|------------|------------|
+| Clase Real | Normal    | Sospechoso | Patológico |
+| Normal     | 1622      | 26         | 7          |
+| Sospechoso | 55        | 236        | 4          |
+| Patológico | 7         | 7          | 162        |
+
+las metricas que se emplean en estas tables son:
+
+MAE = $\frac{sum_{i = 1}^N |y_i - p_i|}{n}$ donde $p_i$ es el valor predicho, esta medida como vemos penaliza más etiquetar uno sano como patológico y viceversa que el resto de errores que pueden cometerse, puesto que como hemos mencionado anteriormente 3 es patológico, 2 es sospechoso y 1 es normal. En nuestra opinión esta penalización mayor tiene sentido, puesto que el error es más grave.
+
+Kappa = $\frac{pr_{clasificacion}-pr_{casualidad}}{1 - pr_{casualidad}}$ donde $pr_clasificacion$ es el porcentaje de muestras bien clasificadas t $pr_{casualidad}$ es la proporción esperada simplemente por azar. Así si Kappa es 0 significa que los resultados que obtenemos son los mismos que obtendríamos al azar y en cambio si obtenemos un 1 indica que es perfecto.
+
+Accuracy: proporción de muestras bien etiquetadas.
+
+Estos resultados fueron obtenidos calculando los resultados medios en 10 folds.
 
 
 # Bibliografía
@@ -639,4 +706,9 @@ cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 \item Partición de los datos: \href{http://stackoverflow.com/questions/13536537/partitioning-data-set-in-r-based-on-multiple-classes-of-observations}{http://stackoverflow.com/questions/...}
 \item \url{http://www.prasa.org/proceedings/2004/prasa04-12.pdf}
 \item \url{http://ro.uow.edu.au/cgi/viewcontent.cgi?article=1791&context=eispapers}
+\item \url{http://discuss.analyticsvidhya.com/t/difference-between-ridge-regression-and-lasso-and-its-effect/3000/2}
+\item \href{https://www.quora.com/Why-is-it-that-the-lasso-unlike-ridge-regression-results-in-coefficient-estimates-that-are-exactly-equal-to-zero}{https://www.quora.com/Why-is-it-that...}
+\item \href{http://es.slideshare.net/ShangxuanZhang/ridge-regression-lasso-and-elastic-net}{http://es.slideshare.net/Sh...}
+\item \url{http://goo.gl/OlocGY}
+\item \url{http://file.scirp.org/pdf/JCC_2014071111175480.pdf}
 \end{enumerate}
