@@ -571,8 +571,8 @@ Hacemos ahora, para 3 clases y para 10, con PCA y sin PCA, las funciones de base
 ```{r}
 # Fijamos primero la semilla
 set.seed(1)
-best_r <- cv.RBF(train, NSP.train, 3, seq(0.1, 1.5, 0.1))
-predicciones3RBF <- predictEt(train, NSP.train, test, 3, best_r)
+best_r3 <- cv.RBF(train, NSP.train, 3, seq(0.1, 1.5, 0.1))
+predicciones3RBF <- predictEt(train, NSP.train, test, 3, best_r3)
 acierto <- sum(predicciones3RBF== NSP.test)/
   length(predicciones3RBF[predicciones3RBF != 0])
 no_clasificados <- length(predicciones3RBF[predicciones3RBF == 0])/
@@ -582,8 +582,8 @@ cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
 
 ```{r}
-best_r <- cv.RBF(trainPCA, NSP.train, 3, seq(0.1, 1.5, 0.1))
-prediccionesPCA3RBF <- predictEt(trainPCA, NSP.train, testPCA, 3, best_r)
+best_r3PCA <- cv.RBF(trainPCA, NSP.train, 3, seq(0.1, 1.5, 0.1))
+prediccionesPCA3RBF <- predictEt(trainPCA, NSP.train, testPCA, 3, best_r3PCA)
 acierto <- sum(prediccionesPCA3RBF == NSP.test)/
   length(prediccionesPCA3RBF[prediccionesPCA3RBF != 0])
 no_clasificados <- length(prediccionesPCA3RBF[prediccionesPCA3RBF == 0])/
@@ -593,8 +593,8 @@ cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
 
 ```{r}
-best_r <- cv.RBF(trainPCA10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
-prediccionesPCA10RBF <- predictEt(trainPCA10, CLASS.train, testPCA10, 10, best_r)
+best_r10PCA <- cv.RBF(trainPCA10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
+prediccionesPCA10RBF <- predictEt(trainPCA10, CLASS.train, testPCA10, 10, best_r10PCA)
 acierto <- sum(prediccionesPCA10RBF == CLASS.test)/
   length(prediccionesPCA10RBF[prediccionesPCA10RBF != 0])
 no_clasificados <- length(prediccionesPCA10RBF[prediccionesPCA10RBF == 0])/
@@ -604,8 +604,8 @@ cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
 
 ```{r}
-best_r <- cv.RBF(train10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
-predicciones10RBF <- predictEt(train10, CLASS.train, test10, 10, best_r)
+best_r10 <- cv.RBF(train10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
+predicciones10RBF <- predictEt(train10, CLASS.train, test10, 10, best_r10)
 acierto <- sum(predicciones10RBF == CLASS.test)/
   length(predicciones10RBF[predicciones10RBF != 0])
 no_clasificados <- length(predicciones10RBF[predicciones10RBF == 0])/
@@ -650,6 +650,46 @@ MPCA10RL <- getMatrizConfusion(prediccionesPCA10RL, CLASS.test, 10)
 
 
 #10. Comparativa con otros resultados sobre la misma base de datos
+
+Vamos a calcular las matrices de confusion agregadas tras realizar un proceso de 10*10 CV es decir vamos a realizar el proceso de 10-folds 10 veces, generando cada vez un submuestreo distinto de los datos:
+
+```{r}
+set.seed(1)
+M_conf_agregada3_RL = M(0,3,3)
+M_conf_agregada3PCA_RL = M(0,3,3)
+M_conf_agregada10_RL = M(0,10,10)
+M_conf_agregada10PCA_RL = M(0,10,10)
+
+M_conf_agregada3_RBF = M(0,3,3)
+M_conf_agregada3PCA_RBF = M(0,3,3)
+M_conf_agregada10_RBFL = M(0,10,10)
+M_conf_agregada10PCA_RBF = M(0,10,10)
+
+for (iter in seq(10)) {
+  folds = sample(seq(10), nrow(datos), replace = T)
+  for (fold in seq(10)) {
+    predicciones3RL <- predictOVA(datos[folds != fold], NSP[folds != fold], 3, datos[folds == fold])
+    predicciones3PCARL <- predictOVA(datosPCA[folds != fold], NSP[folds != fold], 3, datosPCA[folds == fold])
+    predicciones10RL <- predictOVA(datos[folds != fold], CLASS[folds != fold], 10, datos[folds == fold])
+    predicciones10PCARL <- predictOVA(datosPCA[folds != fold], CLASS[folds != fold], 10, datosPCA[folds == fold])
+    
+    M_conf_agregada3_RL = M_conf_agregada3_RL + getMatrizConfusion(predicciones3RL, NSP[folds == fold], 3)
+    M_conf_agregada3PCA_RL = M_conf_agregada3PCA_RL + getMatrizConfusion(predicciones3PCARL, NSP[folds == fold], 3)
+    M_conf_agregada10_RL = M_conf_agregada10_RL + getMatrizConfusion(predicciones10RL, CLASS[folds == fold], 10)
+    M_conf_agregada10PCA_RL = M_conf_agregada10PCA_RL + getMatrizConfusion(predicciones10PCARL, CLASS[folds == fold], 10)
+    
+    predicciones3RBF <- predictEt(datos[folds != fold], NSP[folds != fold], datos[folds == fold], 3, best_r3)
+    predicciones3PCARBF <- predictEt(datosPCA[folds != fold], NSP[folds != fold], datosPCA[folds == fold], 3, best_r3PCA)
+    predicciones10RBF <- predictEt(datos[folds != fold], CLASS[folds != fold], datos[folds == fold], 10, best_r10)
+    predicciones10PCARBF <- predictEt(datosPCA[folds != fold], CLASS[folds != fold], datosPCA[folds == fold], 10, best_r10PCA)
+    
+    M_conf_agregada3_RBF = M_conf_agregada3_RBF + getMatrizConfusion(predicciones3RBF, NSP[folds == fold], 3)
+    M_conf_agregada3PCA_RBF = M_conf_agregada3PCA_RBF + getMatrizConfusion(predicciones3PCARBF, NSP[folds == fold], 3)
+    M_conf_agregada10_RBF = M_conf_agregada10_RBF + getMatrizConfusion(predicciones10RBF, CLASS[folds == fold], 10)
+    M_conf_agregada10PCA_RBF = M_conf_agregada10PCA_RBF + getMatrizConfusion(predicciones10PCARBF, CLASS[folds == fold], 10)
+  }
+}
+```
 
 Hemos encontrado diversos documentos donde se muestran experimentos con distintas técnicas y enfoques sobre nuestra base de datos así que a continuación vamos a mostrar tales resultados que compararemos con los resultados.
 

@@ -2,7 +2,7 @@
 title: "Trabajo3"
 output: pdf_document
 ---
-```{r, echo=FALSE}
+```{r, include=FALSE,echo=FALSE}
 library(MASS)
 library(ISLR)
 library(class)
@@ -185,22 +185,22 @@ Como podemos ver el error obtenido es menor que en los puntos anteriores, el tam
 
 En primer lugar vamos a ver si hay algunar correlación entre las distintas variables que podemos emplear, para ello vamos a ajustar un modelo donde usamos las tres variables de forma independiente y otros tres donde las usamos correladas dos a dos, viendo cuál nos da mejor tasa de error, el error que vamos a medir, dado que estamos hablando de regresión será el error cuadrático medio, MSE:
 
-```{r, echo=FALSE}
+```{r}
 R1 = lm(mpg ~ displacement + horsepower + weight, data = datos.train)
 prediccion = predict(R1, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+cat("El MSE en test con regresión es: ", mean((prediccion - datos.test$mpg)^2) )
 
 R2 = lm(mpg ~ displacement*weight, data = datos.train)
 prediccion = predict(R2, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+cat("El MSE en test con regresión es: ", mean((prediccion - datos.test$mpg)^2) )
 
 R3 = lm(mpg ~ horsepower*displacement, data = datos.train)
 prediccion = predict(R3, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+cat("El MSE en test con regresión es: ", mean((prediccion - datos.test$mpg)^2) )
 
 R4 = lm(mpg ~ horsepower*weight, data = datos.train)
 prediccion = predict(R4, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+cat("El MSE en test con regresión es: ", mean((prediccion - datos.test$mpg)^2) )
 ```
 
 Como podemos ver obtenemos mejor error cuando usamos las variables *horsepower* y *weight* correladas con lo que es lógico pensar que estas variables están estrechamente relacionadas y en consecuencia es mejor emplear un modelo donde esto se vea reflejado en la fórmula.
@@ -210,11 +210,11 @@ Ahora bien tenemos una variable que no estamos usando, veamos qué ocurre si la 
 ```{r}
 R5 = lm(mpg ~ horsepower*weight + displacement, data = datos.train)
 prediccion = predict(R5, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+cat("El MSE en test con regresión es: ", mean((prediccion - datos.test$mpg)^2) )
 
 R6 = lm(mpg ~ horsepower*weight + poly(displacement,2), data = datos.train)
 prediccion = predict(R6, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+cat("El MSE en test con regresión es: ", mean((prediccion - datos.test$mpg)^2) )
 ```
 
 Como podemos ver el error es mejor cuando la incorporamos mediante un polinomio cuadrático, realmente ya habíamos hecho experimentos anteriormente y habíamos visto por medio del plot que facilita lm que los residuos parecían seguir una polinomial con lo que habíamos probado con usar todas las variables como polinomios como veremos más adelante. Con lo cual es un buen intento el usar un polinomio cuadrático como hemos visto.
@@ -222,15 +222,15 @@ Como podemos ver el error es mejor cuando la incorporamos mediante un polinomio 
 ```{r}
 R7 = lm(mpg ~ horsepower*weight + poly(displacement,5), data = datos.train)
 prediccion = predict(R7, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+cat("El MSE en test con regresión es: ", mean((prediccion - datos.test$mpg)^2) )
 
 R8 = lm(mpg ~ poly(horsepower,2)+ poly(weight,2) + poly(displacement,2), data = datos.train)
 prediccion = predict(R8, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+cat("El MSE en test con regresión es: ", mean((prediccion - datos.test$mpg)^2) )
 
 R9 = lm(mpg ~ poly(horsepower,8)+ poly(weight,8) + poly(displacement,8), data = datos.train)
 prediccion = predict(R9, newdata = datos.test, type = "response")
-cat("El MSE de errores en test con R es: ", mean((prediccion - datos.test$mpg)^2) )
+cat("El MSE en test con regresión es: ", mean((prediccion - datos.test$mpg)^2) )
 ```
 
 Aquí vemos otros experimentos donde observamos claramente el sobreajuste pues al aumentar el orden del polinomio en *displacement* a 5 así como usando todas las variables por medio de polinomio de grado 8 vemos como el error aumenta (en este ultimo caso con respecto a usar todas las variables con respecto a polinomios de grado 2). Finalmente si comparamos el modelo con correlación con el modelo con todas las variables de forma cuadrática e independiente vemos que el error es muy similar, siendo ligéramente mejor el que tiene las variables correladas con lo que nos quedaremos con este último.
@@ -394,6 +394,7 @@ for (i in seq(5)) {
 cat("El error de train estimado por CV para SVM es: ", err.in/5, ".\n")
 cat("El error de test estimado por CV para SVM es: ", err.out/5, ".\n")
 ```
+Como podemos ver para calcular el error de train para la regresión lo que hemos hecho es predecir las etiquetas de los datos de entrenamiento con el modelo estimado a partir de los mismos datos de entrenamiento. Esto lo hemos hecho así ya que ha diferencia del SVM el modelo que obtenemos con *glmnet* no nos devuelve los datos ajustados.
 
 # Ejercicio 3
 
