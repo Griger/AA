@@ -115,7 +115,6 @@ train10 <- datos[train_idx,]
 test10 <- datos[-train_idx,]
 ```
 
-
 Ahora vamos a quitar las variables `NSP` y `CLASS` de `train` y `test`, ya que son las salidas, y las vamos a guardar en dos vectores aparte.
 
 ```{r}
@@ -130,7 +129,6 @@ train10 <- train10[,-c(22,23)]
 CLASS.test <- test10$CLASS
 test10 <- test10[,-c(22,23)]
 ```
-
 
 Vamos a hacer un `summary` sobre los datos de `train` para ver si podemos descartar alguna variable que a simple vista se vea que no va a aportar nada.
 
@@ -245,7 +243,19 @@ escalados <- attr(trainPCA10, "scaled:scale")
 testPCA10 <- scale(testPCA10, medias, escalados)
 ```
 
-
+```{r}
+#chunck para los datos de los 10*10-folds y 10-folds de comparativa con artículos
+NSP <- datos$NSP
+CLASS <- datos$CLASS
+datos <- datos[, -c(6,22,23)]
+datosPCA <- apply(pca.out$rotation[, 1:14], 2, function(x) {
+  apply(datos, 1, function(y) {
+    x%*%y
+  })
+})
+datos <- scale(datos)
+datosPCA <- scale(datosPCA)
+```
 #5. Selección de las técnicas y valoración de la idoneidad de las mismas frente a otras alternativas.
 
 ##5.1. Selección de técnicas paramétricas
@@ -566,7 +576,7 @@ cv.RBF <- function(datos.train, et.train, numClases, rango_r) {
 }
 ```
 
-Hacemos ahora, para 3 clases y para 10, con PCA y sin PCA, las funciones de base radial con previa validación cruzada para *r*.
+Hacemos ahora, para 3 clases y para 10, con PCA y sin PCA, las funciones de base radial previa validación cruzada para *r*.
 
 ```{r}
 # Fijamos primero la semilla
@@ -613,6 +623,13 @@ no_clasificados <- length(predicciones10RBF[predicciones10RBF == 0])/
 cat("El porcentaje de acierto para 10 clases sin PCA ha sido:", 100*acierto)
 cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
+```{r}
+#chunk para no tener que rehacer la CV para obtener los mejores r
+best_r3 <- 0.7
+best_r3PCA <- 0.5
+best_r10PCA <- 0.4
+best_r10 <- 0.5
+```
 
 Como vemos, tenemos resultados mejores que con la técnica paramétrica tanto para 3 clases como para 10, y la diferencia entre PCA y sin PCA es mucho menos notable. Concretamente, para 3 clases logramos pasar el 90% de acierto, lo que consideramos que es un muy buen porcentaje.
 
@@ -653,35 +670,36 @@ MPCA10RL <- getMatrizConfusion(prediccionesPCA10RL, CLASS.test, 10)
 
 Vamos a calcular las matrices de confusion agregadas tras realizar un proceso de 10*10 CV es decir vamos a realizar el proceso de 10-folds 10 veces, generando cada vez un submuestreo distinto de los datos:
 
-```{r}
+```{r, eval=F}
 set.seed(1)
-M_conf_agregada3_RL = M(0,3,3)
-M_conf_agregada3PCA_RL = M(0,3,3)
-M_conf_agregada10_RL = M(0,10,10)
-M_conf_agregada10PCA_RL = M(0,10,10)
+M_conf_agregada3_RL = matrix(0,3,3)
+M_conf_agregada3PCA_RL = matrix(0,3,3)
+M_conf_agregada10_RL = matrix(0,10,10)
+M_conf_agregada10PCA_RL = matrix(0,10,10)
 
-M_conf_agregada3_RBF = M(0,3,3)
-M_conf_agregada3PCA_RBF = M(0,3,3)
-M_conf_agregada10_RBFL = M(0,10,10)
-M_conf_agregada10PCA_RBF = M(0,10,10)
+M_conf_agregada3_RBF = matrix(0,3,3)
+M_conf_agregada3PCA_RBF = matrix(0,3,3)
+M_conf_agregada10_RBF = matrix(0,10,10)
+M_conf_agregada10PCA_RBF = matrix(0,10,10)
 
 for (iter in seq(10)) {
   folds = sample(seq(10), nrow(datos), replace = T)
   for (fold in seq(10)) {
-    predicciones3RL <- predictOVA(datos[folds != fold], NSP[folds != fold], 3, datos[folds == fold])
-    predicciones3PCARL <- predictOVA(datosPCA[folds != fold], NSP[folds != fold], 3, datosPCA[folds == fold])
-    predicciones10RL <- predictOVA(datos[folds != fold], CLASS[folds != fold], 10, datos[folds == fold])
-    predicciones10PCARL <- predictOVA(datosPCA[folds != fold], CLASS[folds != fold], 10, datosPCA[folds == fold])
+    print(iter*fold)
+    predicciones3RL <- predictOVA(datos[folds != fold,], NSP[folds != fold], 3, datos[folds == fold,])
+    predicciones3PCARL <- predictOVA(datosPCA[folds != fold,], NSP[folds != fold], 3, datosPCA[folds == fold,])
+    predicciones10RL <- predictOVA(datos[folds != fold,], CLASS[folds != fold], 10, datos[folds == fold,])
+    predicciones10PCARL <- predictOVA(datosPCA[folds != fold,], CLASS[folds != fold], 10, datosPCA[folds == fold,])
     
     M_conf_agregada3_RL = M_conf_agregada3_RL + getMatrizConfusion(predicciones3RL, NSP[folds == fold], 3)
     M_conf_agregada3PCA_RL = M_conf_agregada3PCA_RL + getMatrizConfusion(predicciones3PCARL, NSP[folds == fold], 3)
     M_conf_agregada10_RL = M_conf_agregada10_RL + getMatrizConfusion(predicciones10RL, CLASS[folds == fold], 10)
     M_conf_agregada10PCA_RL = M_conf_agregada10PCA_RL + getMatrizConfusion(predicciones10PCARL, CLASS[folds == fold], 10)
     
-    predicciones3RBF <- predictEt(datos[folds != fold], NSP[folds != fold], datos[folds == fold], 3, best_r3)
-    predicciones3PCARBF <- predictEt(datosPCA[folds != fold], NSP[folds != fold], datosPCA[folds == fold], 3, best_r3PCA)
-    predicciones10RBF <- predictEt(datos[folds != fold], CLASS[folds != fold], datos[folds == fold], 10, best_r10)
-    predicciones10PCARBF <- predictEt(datosPCA[folds != fold], CLASS[folds != fold], datosPCA[folds == fold], 10, best_r10PCA)
+    predicciones3RBF <- predictEt(datos[folds != fold,], NSP[folds != fold], datos[folds == fold,], 3, best_r3)
+    predicciones3PCARBF <- predictEt(datosPCA[folds != fold,], NSP[folds != fold], datosPCA[folds == fold,], 3, best_r3PCA)
+    predicciones10RBF <- predictEt(datos[folds != fold,], CLASS[folds != fold], datos[folds == fold,], 10, best_r10)
+    predicciones10PCARBF <- predictEt(datosPCA[folds != fold,], CLASS[folds != fold], datosPCA[folds == fold,], 10, best_r10PCA)
     
     M_conf_agregada3_RBF = M_conf_agregada3_RBF + getMatrizConfusion(predicciones3RBF, NSP[folds == fold], 3)
     M_conf_agregada3PCA_RBF = M_conf_agregada3PCA_RBF + getMatrizConfusion(predicciones3PCARBF, NSP[folds == fold], 3)
@@ -689,6 +707,17 @@ for (iter in seq(10)) {
     M_conf_agregada10PCA_RBF = M_conf_agregada10PCA_RBF + getMatrizConfusion(predicciones10PCARBF, CLASS[folds == fold], 10)
   }
 }
+```
+```{r}
+M_conf_agregada3_RL
+M_conf_agregada3PCA_RL
+M_conf_agregada10_RL
+M_conf_agregada10PCA_RL
+
+M_conf_agregada3_RBF
+M_conf_agregada3PCA_RBF
+M_conf_agregada10_RBF
+M_conf_agregada10PCA_RBF
 ```
 
 Hemos encontrado diversos documentos donde se muestran experimentos con distintas técnicas y enfoques sobre nuestra base de datos así que a continuación vamos a mostrar tales resultados que compararemos con los resultados.
