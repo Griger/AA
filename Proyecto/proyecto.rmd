@@ -251,7 +251,7 @@ Como podemos leer en el libro ISLR, regresión logística y SVM tienen funciones d
 
 Podríamos pensar en que SVM cuenta con la potencia que le aportan los núcleos, no obstante si el solapamiento entre las clases es considerable ningún núcleo será el adecuado, es decir, no tendríamos seguridad de que SVM funcione mejor.  
 
-Por tanto para decidirnos vamos a medir el solapamiento entre las distintas clases. Esto lo haremos mediante la métrica CSM que se basa en realizar un cociente entre las distancias de los puntos de cada clase al punto medio de su clase con las distancias entre los puntos medios de las clases al punto medio de la muestra total. Así si las primeras son muy grandes el índice, J (que es este cociente), será pequeño indicando que hay solapamiento entre las clases, ya que por decirlo de alguna manera las clases están más dispersas que la muestra, indicando que efectivamente han de estar entremezcladas. Haciendo varios experimentos nos hemos dado cuenta de que si las clases están separadas pero juntas este índice el 0.5. Si las clases están separadas y además hay separación entre ellas J será mayor que 0.5 (y mayor cuanta más separación haya) y si las clases están solapadas J será menor que 0.5. Este estudio lo hemos sacado gracias a los enlaces [4] y [5].
+Por tanto para decidirnos vamos a medir el solapamiento entre las distintas clases. Esto lo haremos mediante la métrica CSM que se basa en realizar un cociente entre las distancias de los puntos de cada clase al punto medio de su clase con las distancias entre los puntos medios de las clases al punto medio de la muestra total. Así si las primeras son muy grandes el índice, J (que es este cociente), será pequeño indicando que hay solapamiento entre las clases, ya que por decirlo de alguna manera las clases están más dispersas que la muestra, indicando que efectivamente han de estar entremezcladas. Haciendo varios experimentos nos hemos dado cuenta de que si las clases están separadas pero juntas este índice el 0.5. Si las clases están separadas y además hay separación entre ellas J será mayor que 0.5 (y mayor cuanta más separación haya) y si las clases están solapadas J será menor que 0.5. Este estudio lo hemos realizado gracias a los enlaces [4] y [5].
 
 A continuación mostramos el código de la función que nos medirá este índice de solapamiento para una muestra dada:
 
@@ -299,7 +299,7 @@ Como vemos, este índice es menor que 0.5 en todos los casos, pero es que además 
 
 Por otro lado las funciones de base radial paramétricas no nos parecen una buena opción ya que dependen fuertemente de cómo estén distribuidos los datos, es decir, les ocurre como al KNN; si tenemos puntos próximos al punto a etiquetar de clase distinta a la real del punto entonces la clasificación no será buena. En cambio pensamos que dado que la regresión logística nos da una visión probabilística del etiquetado será más robusta a estas situaciones.  
 
-A continuación vamos a explicar cómo funciona la regresion logística multinomial.
+A continuación vamos a explicar cómo funciona la regresion logística multinomial que nosotros hemos realizado.
 Lo que hace es basarse en la regresión logística binaria utilizando el *uno contra todos* o *one versus all*, de forma que para cada clase se divide el conjunto entre las instancias que pertenecen a mi clase y todas las demás y en estas dos clases artificiales se utiliza la regresión logística binaria. De esta forma cuando nos llega un nuevo dato se calcula la probabilidad de que pertenezca a cada clase (es decir, para cada clase se calcula la probabilidad de que pertenezca a esa clase en lugar de a todas las demás) y nos quedamos con el máximo de estas probabilidades, obteniendo así la clase de dato con una cierta probabilidad. En cuanto a la regresión binomial, para obtener la probabilidad de que un dato pertenezca a una determinada clase se utiliza la función logística, que devuelve un número entre 0 y 1 y es la siguiente: $p(X) = \frac{e^{\beta_0 +
 \beta_1 X_1 + ... + \beta_n X_n}}{1+e^{\beta_0 + \beta_1 X_1 +...+ \beta_n X_n}}$ suponiendo que haya $n$ variables con las que predecir.  
 
@@ -350,7 +350,7 @@ Como vemos devuelve cosas lógicas en tanto que los porcentajes de acierto son re
 
 ##5.2. Selección de técnicas no paramétricas
 
-Para elegir entre KNN y RBF (funciones de base radial) vamos a volver a utilizar el índice *J* que habíamos calculado previamente para elegir entre regresión logística y SVM, ya que aquí también nos influye cómo de solapadas estén las clases, ya que si no hay solapamiento convendría más utilizar KNN ya que ahí los K vecinos más cercanos influyen lo mismo para elegir la clase, mientras que si hay solapamiento conviene más utilizar funciones de base radial para que influyan menos los valores que están más lejanos, ya que al tenerlos mezclados en la frontera, a un punto lo suficientemente cercano a la frontera le viene mejor que estos influyan menos a que los coja por igual el KNN. Además, al estar las clases solapadas usando KNN corremos el riesgo de que los K vecinos más cercanos no sean (en mayoría) de la clase del punto a clasificar. Este problema lo evitamos empleando base radial puesto que en ella todos los puntos tienen influencía, así por ejemplo pueden vencer puntos que estén algo más alejados del punto en cuestión pero que sean de la clase correcta.  
+Para elegir entre KNN y RBF (funciones de base radial) vamos a volver a utilizar el índice *J* que habíamos calculado previamente para elegir entre regresión logística y SVM, ya que aquí también nos influye cómo de solapadas estén las clases, ya que si no hay solapamiento convendría más utilizar KNN, ya que ahí los K vecinos más cercanos influyen lo mismo para elegir la clase. Si hay solapamiento conviene más utilizar funciones de base radial ya que tendrán todos los puntos cierta influencia y podemos conseguir que puntos algo más alejados pero cuya clase sea la correcta participen y le den al punto su clase. Esto se pone de manifiesto en puntos que estén en la frontera entre dos clases, puede ser que si usamos por ejemplo un 3-NN los puntos más cercanos no sean de la clase de una a etiquetar, en cambio si empleamos base radial podemos tomar una mayor cantidad de puntos que sí sean de la clase correcta pero que estuvieran un poco más alejados del punto.
 
 Además de utilizar este índice, vamos a calcular la distancia media entre todos los puntos de una clase y la distancia media entre todos los puntos de la muestra, de forma que si la distancia media de una clase con respecto a la distancia media de la muestra total es igual o mayor, esto podría decirnos que hay solapamiento, mientras que si es menor, que no lo hay. Lo vamos a hacer tanto para NSP, donde tenemos 3 clases, como para CLASS, donde tenemos 10.    
 
@@ -395,16 +395,11 @@ print(getDistanciasMedias(NULL, trainPCA10, 1))
 
 Efectivamente nos sale algo parecido a lo que deducíamos del índice *J*, ya que para las 3 clases (tanto con PCA como sin él), las medias de las clases están muy cerca o por encima de la media de la muestra total, mientras que para 10 clases (tanto con PCA como sin él), las medias están cerca de la media total de la muestra, con lo que tenemos más solapamiento con 3 clases que con 10 pero en ningún caso están completamente separadas.  
 
-Vamos a utilizar por tanto funciones de base radial. A continuación vemos la implementación de las mismas, que hemos llevado a cabo nosotros. 
-
-Vamos a hacer primero una función para hacer la clasificación con las funciones de base radial, donde en lugar de hacer la media de las distancias con las etiquetas, lo que vamos a hacer es sumar pesos que irán en función de *r* y el punto de validación en cuestión. Donde *r* es la anchura que le vamos a dar a las gaussianas, que va a ser un valor que vamos a obtener por validación cruzada más adelante.
-
-
 #6. Aplicación de las técnicas especificando claramente qué algoritmos se usan en la estimación de los parámetros, los hiperparámetros y el error de generalización.
 
 Empezamos haciendo el análisis para las 3 clases, es decir, según la variable `NSP`, y además empezamos haciéndolo con la transformación que nos ha dado PCA.
 
-Para ello, vamos a utilizar regresión logística con regularización weigth-decay con el paquete `glmnet`. Como sabemos, hay un coeficiente, $\lambda$, que regula la influencia que tiene la condición de regularización (de "contracción") en el ajuste. Para elegir dicho $\lambda$ vamos a hacer validación cruzada con el mismo paquete haciendo uso de la función `cv.glmnet`, que nos devuelve justo el mejor $\lambda$ encontrado entre una rejilla. Esta validación cruzada la vamos a hacer con cinco particiones especificándolo con la variable `nfolds = 5` indicando que la regularización que queremos hacer es weight-decay (que se especifica con el parámetro `alpha = 0`). El porqué hemos elegido esta regularización está explicado en la sección dedicada para ello, la número 7. Vamos a hacer que elija como $\lambda$ aquel que minimice la media de los errores cuadráticos, para lo que tenemos que poner como argumento a la función `type.measure = "mse"`.  
+Para ello, vamos a utilizar regresión logística con regularización weigth-decay con el paquete `glmnet`. Como sabemos, hay un coeficiente, $\lambda$, que regula la influencia que tiene la condición de regularización (de "contracción") en el ajuste. Para elegir dicho $\lambda$ vamos a hacer validación cruzada con el mismo paquete haciendo uso de la función `cv.glmnet`, que nos devuelve, entre otras cosas, el mejor $\lambda$ encontrado entre una rejilla. Esta validación cruzada la vamos a hacer con cinco particiones especificándolo con la variable `nfolds = 5` indicando que la regularización que queremos hacer es weight-decay (que se especifica con el parámetro `alpha = 0`). El porqué hemos elegido esta regularización está explicado en la sección dedicada para ello, la número 7. Vamos a hacer que elija como $\lambda$ aquel que minimice la media de los errores cuadráticos, para lo que tenemos que poner como argumento a la función `type.measure = "mse"`.  
 
 Como hemos comentado, vamos a programar la regresión logística multinomial haciendo uso de `glmnet` para la binomial:
 
@@ -567,17 +562,11 @@ cv.RBF <- function(datos.train, et.train, numClases, rango_r) {
 ```
 
 Hacemos ahora, para 3 clases y para 10, con PCA y sin PCA, las funciones de base radial previa validación cruzada para *r*.
-```{r}
-#chunk para no tener que rehacer la CV para obtener los mejores r
-best_r3 <- 0.7
-best_r3PCA <- 0.5
-best_r10PCA <- 0.4
-best_r10 <- 0.5
-```
+
 ```{r}
 # Fijamos primero la semilla
 set.seed(1)
-#best_r3 <- cv.RBF(train, NSP.train, 3, seq(0.1, 1.5, 0.1))
+best_r3 <- cv.RBF(train, NSP.train, 3, seq(0.1, 1.5, 0.1))
 predicciones3RBF <- predictEt(train, NSP.train, val, 3, best_r3)
 acierto <- sum(predicciones3RBF== NSP.val)/
   length(predicciones3RBF[predicciones3RBF != 0])
@@ -588,7 +577,7 @@ cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
 
 ```{r}
-#best_r3PCA <- cv.RBF(trainPCA, NSP.train, 3, seq(0.1, 1.5, 0.1))
+best_r3PCA <- cv.RBF(trainPCA, NSP.train, 3, seq(0.1, 1.5, 0.1))
 prediccionesPCA3RBF <- predictEt(trainPCA, NSP.train, valPCA, 3, best_r3PCA)
 acierto <- sum(prediccionesPCA3RBF == NSP.val)/
   length(prediccionesPCA3RBF[prediccionesPCA3RBF != 0])
@@ -599,7 +588,7 @@ cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
 
 ```{r}
-#best_r10PCA <- cv.RBF(trainPCA10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
+best_r10PCA <- cv.RBF(trainPCA10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
 prediccionesPCA10RBF <- predictEt(trainPCA10, CLASS.train, valPCA10, 10, best_r10PCA)
 acierto <- sum(prediccionesPCA10RBF == CLASS.val)/
   length(prediccionesPCA10RBF[prediccionesPCA10RBF != 0])
@@ -610,7 +599,7 @@ cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 ```
 
 ```{r}
-#best_r10 <- cv.RBF(train10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
+best_r10 <- cv.RBF(train10, CLASS.train, 10, seq(0.1, 1.5, 0.1))
 predicciones10RBF <- predictEt(train10, CLASS.train, val10, 10, best_r10)
 acierto <- sum(predicciones10RBF == CLASS.val)/
   length(predicciones10RBF[predicciones10RBF != 0])
@@ -622,8 +611,11 @@ cat("El porcentaje de no clasificados ha sido:", 100*no_clasificados)
 
 Como vemos, tenemos resultados mejores que con la técnica paramétrica tanto para 3 clases como para 10, y la diferencia entre PCA y sin PCA es mucho menos notable. Concretamente, para 3 clases logramos pasar el 90% de acierto, lo que consideramos que es un muy buen porcentaje.  
 
-Vamos a obtener ahora una cota para $E_{out}$ para cada uno de los cuatro modelos. Recordemos que K (el número de muestras en el conjunto de validación) es 425 en el caso de clasificación por 3 clases y 420 en el caso de clasificación para 10 clases, pero en ambos casos $\frac{1}{\sqrt{K}}$ es muy parecido, concretamente 0.049 en ambos casos si redondeamos.  
-Para 3 clases sin PCA, $E_{val} = 1- 0.9176471 = 0.0823529$, luego $E_{out} \leq 0.0823529 + O(0.049)$. Para 3 clases con PCA $E_{val} = 1 - 0.9035294 = 0.0964706$, luego $E_{out} \leq 0.0964706 + O(0.049)$. Para 10 clases con PCA, $E_{val} = 1 - 0.6761905 = 0.3238095$, luego $E_{out} \leq 0.3238095 + O(0.049)$. Para 10 clases sin PCA, $E_{val} = 1 - 0.6928571 = 0.3071429$, luego $E_{out} \leq 0.3071429 + O(0.049)$.
+Vamos a obtener ahora una cota para $E_{out}$ para cada uno de los cuatro modelos. Recordemos que K (el número de muestras en el conjunto de validación) es 425 en el caso de clasificación por 3 clases y 420 en el caso de clasificación para 10 clases, pero en ambos casos $\frac{1}{\sqrt{K}}$ es muy parecido, concretamente 0.049 si redondeamos.  
+Para 3 clases sin PCA, $E_{val} = 1- 0.9176471 = 0.0823529$, luego $E_{out} \leq 0.0823529 + O(0.049)$.  
+Para 3 clases con PCA $E_{val} = 1 - 0.9035294 = 0.0964706$, luego $E_{out} \leq 0.0964706 + O(0.049)$.  
+Para 10 clases con PCA, $E_{val} = 1 - 0.6761905 = 0.3238095$, luego $E_{out} \leq 0.3238095 + O(0.049)$.  
+Para 10 clases sin PCA, $E_{val} = 1 - 0.6928571 = 0.3071429$, luego $E_{out} \leq 0.3071429 + O(0.049)$.
 
 #7. Argumentar sobre la idoneidad de la función regularización usada (en su caso).
 
@@ -635,7 +627,11 @@ Nos hemos decantado por ridge regression dado que ya hacemos una especie de sele
 
 #8. Valoración de los resultados (gráficas, métricas de error, análisis de residuos, etc.)
 
+Como teníamos clasificación multiclase, hemos hecho nostros una función, que ponemos a continuación, para obtener la matriz de confusión.
+
 ```{r}
+# Función para obtener la matriz de confusión dadas las clases reales y las
+# predichas, además del número total de clases
 getMatrizConfusion <- function(et.predichas, et.reales, numClases) {
   M <- matrix(0, numClases, numClases)
   for (i in seq(numClases)) {
@@ -724,11 +720,11 @@ Tenemos también la matriz de confusión para los árboles de decisión:
 | Sospechoso | 55        | 236        | 4          |
 | Patológico | 7         | 7          | 162        |
 
-las metricas que se emplean en estas tables son:
+las métricas que se emplean en estas tables son:
 
 MAE = $\frac{sum_{i = 1}^N |y_i - p_i|}{n}$ donde $p_i$ es el valor predicho, esta medida como vemos penaliza más etiquetar uno sano como patológico y viceversa que el resto de errores que pueden cometerse, puesto que como hemos mencionado anteriormente 3 es patológico, 2 es sospechoso y 1 es normal. En nuestra opinión esta penalización mayor tiene sentido, puesto que el error es más grave.
 
-Kappa = $\frac{pr_{clasificacion}-pr_{casualidad}}{1 - pr_{casualidad}}$ donde $pr_clasificacion$ es el porcentaje de muestras bien clasificadas y $pr_{casualidad}$ es la proporción esperada simplemente por azar. Así si Kappa es 0 significa que los resultados que obtenemos son los mismos que obtendríamos al azar y en cambio si obtenemos un 1 indica que es perfecto.
+Kappa = $\frac{pr_{clasificacion}-pr_{casualidad}}{1 - pr_{casualidad}}$ donde $pr_{clasificacion}$ es el porcentaje de muestras bien clasificadas y $pr_{casualidad}$ es la proporción esperada simplemente por azar. Así si Kappa es 0 significa que los resultados que obtenemos son los mismos que obtendríamos al azar y en cambio si obtenemos un 1 indica que es perfecto.
 
 Accuracy: proporción de muestras bien etiquetadas.
 
@@ -784,11 +780,11 @@ cat("Kappa para RBF con 10 clases con PCA: ", ((sum(prediccionesPCA10RBF ==
                                                     CLASS.val)/length(CLASS.val))
                                                - 0.1)/0.9, "\n")
 ```
-Aquí observamos algo extraño si tenemos en cuenta los resultados con respecto a MAE, ya que en este caso nuestro modelos se comportan mejor en la gran mayoría de los casos sólo se comportan peor la regresión logística con respecto a los árboles de decisión. Esto se puede justificar pensando en que nuestros modelos clasifiquen correctamente una mayor proporción de puntos los que da lugar a un mejor Kappa pero que en cambio los fallos que cometen, y que penaliza más MAE, son fallos más críticos, con lo cual nuestros modelos no son tan buenos para algo tan crítico como la clasificación que queremos resolver que los modelos empleados en el paper.
+Aquí observamos algo extraño si tenemos en cuenta los resultados con respecto a MAE, ya que en este caso nuestro modelos se comportan mejor en la gran mayoría de los casos. Sólo se comportan peor la regresión logística con respecto a los árboles de decisión. Esto se puede justificar pensando en que nuestros modelos clasifiquen correctamente una mayor proporción de puntos los que da lugar a un mejor Kappa pero que en cambio los fallos que cometen, y que penaliza más MAE, son fallos más críticos, con lo cual nuestros modelos no son tan buenos para algo tan crítico como la clasificación que queremos resolver que los modelos empleados en el paper; de hecho esto se observa en la única matriz de confusión que hay en el paper que es la de los árboles de decisión que sí clasifican mejor que nuestros modelos y tiene menos errores críticos (normal vs. patológico).
 
-Veamos ahora cómo se comportan nuestro algoritmos con respecto al accuracy. Aquí simplemente observamos que regresión logística y SVM se comportan más o menos igual ganando levemente SVM. Además las funciones de base radial con y sin PCA se comportan mejor que SVM y que las redes de funciones de base radial lo cual muestra un muy buen comportamiento.
+Veamos ahora cómo se comportan nuestro algoritmos con respecto al accuracy que la hemos ido calculando antes. Aquí simplemente observamos que regresión logística y SVM se comportan más o menos igual ganando levemente SVM. Además las funciones de base radial con y sin PCA se comportan mejor que SVM y que las redes de funciones de base radial lo cual muestra un muy buen comportamiento.
 
-# Bibliografía
+#11. Bibliografía
 
 \begin{enumerate}
 \item La base de datos: \url{https://archive.ics.uci.edu/ml/datasets/Cardiotocography#}
@@ -801,4 +797,5 @@ Veamos ahora cómo se comportan nuestro algoritmos con respecto al accuracy. Aquí
 \item \href{http://es.slideshare.net/ShangxuanZhang/ridge-regression-lasso-and-elastic-net}{http://es.slideshare.net/Sh...}
 \item \url{http://goo.gl/OlocGY}
 \item \url{http://file.scirp.org/pdf/JCC_2014071111175480.pdf}
+\item \href{http://stats.stackexchange.com/questions/91484/do-discriminative-models-overfit-more-than-generative-models}{http://stats.stackexchange.com/...}
 \end{enumerate}
