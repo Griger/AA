@@ -674,6 +674,8 @@ Una vez que hemos hecho este análisis es claro que la dimensión de VC para nuest
 
 Ahora vemos que no puede ser mayor a d+1, supongamos que hay d+2 datos de modo que todos los etiquetados posibles sobre ellos (de K > 2 clases) pueden ser producidos por una regresión logística OVA. Consideramos ahora un etiquetado binario posible sobre esos datos: etiquetamos los datos de modo que uno de los OVAs realizados se corresponda con él y tomamos la función logística que lo da. Si suponemos que hay una $h \in \mathcal{H}$ que genera ese etiquetado entonces la dimensión de VC de regresión logística binaria sería d+2 en contradicción con lo que sabemos.  
 
+En nuestro caso estas dimensiones son 15 y 20 con lo que las cotas que la utilizan no nos dan información relevante. Lo mismo ocurre para la desigualdad de Hoeffding pues la clase de funciones de regresión logística tiene infinitos elementos.  
+
 Ahora por otro lado veamos la dimensión de VC para las funciones de base radial. Es claro que una vez hemos fijado un cierto r (que es un hiperparámetro) entonces serán los datos a etiquetar los que nos den la dimensión. Al igual que para ver la dimensión de VC para el 1-NN, si consideramos unos datos que estén lo suficientemente separados (según el r fijado) como para que sólo tenga influencia su etiqueta es claro que podemos etiquetarlos de cualquier modo posible, y por lo tanto la dimensión de VC en este caso es infinita. Por tanto, no podemos emplear una cota del error de generalización que la involucre. 
 
 Los errores de generalización que hemos usado han sido haciendo uso de un conjunto de validación separado previamente de los datos antes de empezar a hacer modelos.
