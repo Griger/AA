@@ -150,7 +150,7 @@ Como hemos podido ver hay muchas que tienen valores cercanos a cero, pero sobre 
 
 El análisis de componente principales (PCA) sigue la siguiente idea: nosotros podemos tener nuestras muestras con gran multitud de características, es decir, muestras con una elevada dimensión. Ahora bien, puede darse el caso de que no todas estas características tengan la misma relevancia, es decir, que no aporten la misma información. Por motivos de eficiencia computacional y obtener un modelo más sencillo es claro que es bueno reducir este número de variables, aunque sea a costa de perder algo de información, y esto es lo que hace el PCA. Buscamos una representación de los datos de dimensión más baja que capture toda (o una cantidad considerable) de la información. Un dimensión es interesante en términos de cómo las observaciones varían a lo largo de dicha dimensión.  
 
-Si nuestras muestras tienen el siguiente conjunto de características $X_1, X_2, ..., X_p$ entonces la primera componente principal será $Z_1 = \phi_1X_1 + ... + \phi_pX_p$ y estamos buscando por tanto una combinación lineal de las características anteriores que maximize la varianza, cumpliendo que el cuadrado de los coeficientes (*loadings*) sumen uno, es decir, que maximice $\frac{1}{n}\sum_{i = 1}^n \left( \sum_{j = 1}^p \phi_{j1}x_{ij} \right)^2$ (estamos sumoniendo que las variables tienen media cero para estos cálculos). Señalar que la condición de normalización que le imponemos a los *loadings* es para que no ganemos máxima varianza simplemente haciéndolos crecer mucho. Para calcular el resto de componentes principales se hace de la misma manera restringiendo además a que no estén correlados con los anteriores: que sean ortogonales (si vemos los *loadings* como vectores) a los anteriores.  
+Si nuestras muestras tienen el siguiente conjunto de características $X_1, X_2, ..., X_p$ entonces la primera componente principal será $Z_1 = \phi_1X_1 + ... + \phi_pX_p$ y estamos buscando por tanto una combinación lineal de las características anteriores que maximize la varianza, cumpliendo que el cuadrado de los coeficientes (*loadings*) sumen uno, es decir, que maximice $\frac{1}{n}\sum_{i = 1}^n \left( \sum_{j = 1}^p \phi_{j1}x_{ij} \right)^2$ (estamos suponiendo que las variables tienen media cero para estos cálculos). Señalar que la condición de normalización que le imponemos a los *loadings* es para que no ganemos máxima varianza simplemente haciéndolos crecer mucho. Para calcular el resto de componentes principales se hace de la misma manera restringiendo además a que no estén correlados con los anteriores: que sean ortogonales (si vemos los *loadings* como vectores) a los anteriores.  
 
 Ya hemos asumido antes que la media de cada variable es cero ya que sólo estamos interesados en la varianza y esto facilita los cálculos. Por otro lado, si no tenemos ninguna restricción que lo impida, es conveniente escalar las variables de modo que no tenga una más influencia que otra simplemente por la escala en la que está medida, por ejemplo si una variable da saltos de 1000 en 1000 y otra de 10 en 10, aunque los datos de la primera presenten menos varianza debido a la magnitud de los datos ésta tendrá más influencia.  
 
@@ -173,7 +173,7 @@ Como podemos ver con `summary()`, con las 14 primeras componentes principales es
 summary(pca.out10)
 ```
 
-De nuevo con las 14 primeras componentes principales conseguimos explicar más del 96% de los datos, con lo que vamos a quedarnos también con las 14 primeras. Vamos a hacer entonces la combinación lineal que nos da PCA para ambos conjuntos para obtener los nuevos conjuntos de train.
+De nuevo con las 14 primeras componentes principales conseguimos explicar más del 96% de los datos, con lo que vamos a quedarnos también con las 14 primeras. Vamos a hacer entonces las combinaciones lineales que nos da PCA para ambos conjuntos para obtener los nuevos conjuntos de train.
 
 ```{r}
 # Recorremos las combinaciones lineales devueltas por prcomp y las aplicamos
@@ -191,7 +191,7 @@ trainPCA10 <- apply(pca.out10$rotation[ ,1:14], 2, function(x) {
 })
 ```
 
-Vamos a hacerle la combinación lineal al conjunto de validación también con las componentes principales de train:
+Vamos a hacerle las combinaciones lineales al conjunto de validación también con las componentes principales de train:
 
 ```{r}
 valPCA <- apply(pca.out$rotation[ ,1:14], 2, function(x) {
@@ -242,23 +242,10 @@ escalados <- attr(trainPCA10, "scaled:scale")
 valPCA10 <- scale(valPCA10, medias, escalados)
 ```
 
-```{r}
-#chunck para los datos de los 10*10-folds y 10-folds de comparativa con artículos
-NSP <- datos$NSP
-CLASS <- datos$CLASS
-datos <- datos[, -c(6,22,23)]
-datosPCA <- apply(pca.out$rotation[, 1:14], 2, function(x) {
-  apply(datos, 1, function(y) {
-    x%*%y
-  })
-})
-datos <- scale(datos)
-datosPCA <- scale(datosPCA)
-```
 #5. Selección de las técnicas y valoración de la idoneidad de las mismas frente a otras alternativas.
 
 ##5.1. Selección de técnicas paramétricas
-En cuanto a los modelos paramétricos, es claro que no podemos plantearnos usar el perceptron ya que de inicio estamos ante un problema de clasifación no binaria, con lo que no vamos a poder realizar una buena clasificación con él.  
+En cuanto a los modelos paramétricos, es claro que no podemos plantearnos usar el perceptron ya que de inicio estamos ante un problema de clasificación no binaria, con lo que no vamos a poder realizar una buena clasificación con él.  
 
 Como podemos leer en el libro ISLR, regresión logística y SVM tienen funciones de pérdida muy parecidas, en consecuencia los rendimientos que ofrecen son muy parecidos. Ahora bien, lo que distingue a ambos en su comportamiento es el solapamiento que haya entre las distintas clases de la muestra. Así cuando tenemos un solamiento mayor la regresión logística muestra, experimentalmente, un mejor rendimiento que el SVM. En cambio cuando los datos son separables es el SVM el que se comporta mejor.  
 
